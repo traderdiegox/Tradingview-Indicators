@@ -32,5 +32,6 @@ Both zones include configurable colors, border styles, labels, and midpoint line
 
 ## License
 
-MIT License — Copyright (c) 2026 traderdiegox  
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+Mozilla Public License 2.0 — Copyright (c) 2026 traderdiegox  
+Portions derived from [cryptonnnite](https://www.tradingview.com/u/cryptonnnite/) (NWOG/NDOG), © cryptonnnite, MPL 2.0  
+https://mozilla.org/MPL/2.0/
