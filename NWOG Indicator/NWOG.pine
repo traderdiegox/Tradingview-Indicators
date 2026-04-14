@@ -1,0 +1,594 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0
+// https://mozilla.org/MPL/2.0/
+// © traderdiegox
+// Portions derived from cryptonnnite (NWOG/NDOG), © cryptonnnite, MPL 2.0
+
+//@version=6
+indicator("NWOG + ORG", shorttitle="NWOG/ORG", overlay=true,
+          max_boxes_count=500, max_lines_count=500, max_labels_count=500)
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  NEW WEEK OPENING GAP — INPUTS
+// ═══════════════════════════════════════════════════════════════════════════
+string G = "NEW WEEK OPENING GAP"
+
+show_zone = input.bool(true,  "Show NWOG",      group=G, inline="1")
+zone_col  = input.color(color.new(color.red, 75), "", group=G, inline="1")
+
+nwog_bdr_col   = input.color(color.new(color.red, 0), "Border", group=G, inline="2")
+nwog_bdr_sty   = input.string("None", "",             group=G, inline="2", options=["None","Solid","Dashed","Dotted"])
+nwog_bdr_width = input.int(1, "",                     group=G, inline="2", minval=1, maxval=4)
+
+show_prev = input.bool(false, "Previous NWOGs", group=G, inline="3")
+n_prev    = input.int(1,    "",               group=G, inline="3", minval=1, maxval=10)
+prev_col  = input.color(color.new(#26A69A, 75), "", group=G, inline="3")
+
+show_ce   = input.bool(true,  "NWOG Midpoint", group=G, inline="4")
+ce_sty_in = input.string("Dashed", "",          group=G, inline="4", options=["Solid","Dashed","Dotted"])
+ce_col    = input.color(color.red, "",           group=G, inline="4")
+
+show_lbl  = input.bool(true,    "Label", group=G, inline="5")
+lbl_h     = input.string("Right", "",    group=G, inline="5", options=["Left","Center","Right"])
+lbl_v     = input.string("Top",   "",    group=G, inline="5", options=["Top","Middle","Bottom"])
+lbl_sz_in = input.string("Small", "",    group=G, inline="5", options=["Tiny","Small","Normal","Large"])
+lbl_col   = input.color(color.black, "", group=G, inline="5")
+
+ext_prev = input.bool(true, "Extend Previous NWOGs", group=G)
+
+int eff_prev = show_prev ? n_prev : 0
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  OPENING RANGE GAP — INPUTS
+// ═══════════════════════════════════════════════════════════════════════════
+string G2 = "OPENING RANGE GAP"
+
+show_org      = input.bool(true,  "Show ORG",       group=G2, inline="o1")
+org_col       = input.color(color.new(color.green, 75), "", group=G2, inline="o1")
+
+org_bdr_col   = input.color(color.new(color.green, 0), "Border", group=G2, inline="o2")
+org_bdr_sty   = input.string("None", "",               group=G2, inline="o2", options=["None","Solid","Dashed","Dotted"])
+org_bdr_width = input.int(1, "",                       group=G2, inline="o2", minval=1, maxval=4)
+
+show_prev_org = input.bool(false, "Previous ORGs",  group=G2, inline="o3")
+n_prev_org    = input.int(1, "",                    group=G2, inline="o3", minval=1, maxval=4)
+prev_org_col  = input.color(color.new(#9C27B0, 75), "", group=G2, inline="o3")
+
+show_org_ce   = input.bool(true,  "ORG Midpoint",   group=G2, inline="o4")
+org_ce_sty_in = input.string("Dashed", "",          group=G2, inline="o4", options=["Solid","Dashed","Dotted"])
+org_ce_col    = input.color(color.green, "",         group=G2, inline="o4")
+
+show_org_lbl  = input.bool(true,  "Label",          group=G2, inline="o5")
+org_lbl_h     = input.string("Right", "",           group=G2, inline="o5", options=["Left","Center","Right"])
+org_lbl_v     = input.string("Top",   "",           group=G2, inline="o5", options=["Top","Middle","Bottom"])
+org_lbl_sz_in = input.string("Small", "",           group=G2, inline="o5", options=["Tiny","Small","Normal","Large"])
+org_lbl_col   = input.color(color.black, "", group=G2, inline="o5")
+
+ext_prev_org  = input.bool(true, "Extend Previous ORGs", group=G2)
+
+int eff_prev_org = show_prev_org ? n_prev_org : 0
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  GENERAL
+// ═══════════════════════════════════════════════════════════════════════════
+string G3 = "GENERAL"
+extend_bars  = input.int(5,   "Extend boxes (bars)", group=G3, minval=0, maxval=500)
+mid_show     = input.bool(true, "Midnight Open",     group=G3, inline="mid")
+mid_col      = input.color(color.new(color.gray, 50), "", group=G3, inline="mid")
+mid_sty_in   = input.string("Solid", "",             group=G3, inline="mid", options=["Solid","Dashed","Dotted"])
+mid_width    = input.int(1, "",                      group=G3, inline="mid", minval=1, maxval=4)
+mid_prev     = input.int(10, "Previous Midnight Opens", group=G3, minval=0, maxval=50)
+sun_show     = input.bool(true, "Sunday Open",       group=G3, inline="sun")
+sun_col      = input.color(color.new(color.orange, 50), "", group=G3, inline="sun")
+sun_sty_in   = input.string("Solid", "",             group=G3, inline="sun", options=["Solid","Dashed","Dotted"])
+sun_width    = input.int(1, "",                      group=G3, inline="sun", minval=1, maxval=4)
+sun_prev     = input.int(10, "Previous Sunday Open Lines", group=G3, minval=0, maxval=50)
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ORG STATS TABLE — INPUTS
+// ═══════════════════════════════════════════════════════════════════════════
+string G4     = "ORG STATS"
+stats_show    = input.bool(true,  "Show ORG Fill Table",  group=G4)
+stats_days    = input.int(20,     "Lookback (days)",       group=G4, minval=1, maxval=252)
+stats_pos_in  = input.string("Top Right", "Position",     group=G4, options=["Top Right","Top Left","Top Center","Bottom Right","Bottom Left","Bottom Center","Middle Right","Middle Left"])
+stats_sz_in   = input.string("Small", "Text Size",        group=G4, options=["Tiny","Small","Normal","Large"])
+stats_txt_col = input.color(color.white,                  "Text",     group=G4, inline="sc")
+stats_hdr_col = input.color(color.new(color.green, 30),  "Header",   group=G4, inline="sc")
+stats_hdr_txt = input.color(color.white,                  "Hdr Text", group=G4, inline="sc")
+stats_bg_col  = input.color(color.new(color.black, 20),  "BG",       group=G4, inline="sc")
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  NWOG — STYLE
+// ═══════════════════════════════════════════════════════════════════════════
+ce_ls = switch ce_sty_in
+    "Solid"  => line.style_solid
+    "Dashed" => line.style_dashed
+    =>          line.style_dotted
+
+lbl_sz = switch lbl_sz_in
+    "Tiny"   => size.tiny
+    "Small"  => size.small
+    "Normal" => size.normal
+    =>          size.large
+
+lbl_halign = switch lbl_h
+    "Left"   => text.align_left
+    "Center" => text.align_center
+    =>          text.align_right
+
+lbl_valign = switch lbl_v
+    "Top"    => text.align_top
+    "Middle" => text.align_center
+    =>          text.align_bottom
+
+int  nwog_bw           = nwog_bdr_sty == "None" ? 0 : nwog_bdr_width
+nwog_border_style      = switch nwog_bdr_sty
+    "Dashed" => line.style_dashed
+    "Dotted" => line.style_dotted
+    =>          line.style_solid
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ORG — STYLE
+// ═══════════════════════════════════════════════════════════════════════════
+org_ce_ls = switch org_ce_sty_in
+    "Solid"  => line.style_solid
+    "Dashed" => line.style_dashed
+    =>          line.style_dotted
+
+org_lbl_sz = switch org_lbl_sz_in
+    "Tiny"   => size.tiny
+    "Small"  => size.small
+    "Normal" => size.normal
+    =>          size.large
+
+org_lbl_halign = switch org_lbl_h
+    "Left"   => text.align_left
+    "Center" => text.align_center
+    =>          text.align_right
+
+org_lbl_valign = switch org_lbl_v
+    "Top"    => text.align_top
+    "Middle" => text.align_center
+    =>          text.align_bottom
+
+int  org_bw            = org_bdr_sty == "None" ? 0 : org_bdr_width
+org_border_style       = switch org_bdr_sty
+    "Dashed" => line.style_dashed
+    "Dotted" => line.style_dotted
+    =>          line.style_solid
+
+mid_ls = switch mid_sty_in
+    "Dashed" => line.style_dashed
+    "Dotted" => line.style_dotted
+    =>          line.style_solid
+
+sun_ls = switch sun_sty_in
+    "Dashed" => line.style_dashed
+    "Dotted" => line.style_dotted
+    =>          line.style_solid
+
+stats_sz = switch stats_sz_in
+    "Tiny"   => size.tiny
+    "Normal" => size.normal
+    "Large"  => size.large
+    =>          size.small
+
+stats_tbl_pos = switch stats_pos_in
+    "Top Left"      => position.top_left
+    "Top Center"    => position.top_center
+    "Bottom Right"  => position.bottom_right
+    "Bottom Left"   => position.bottom_left
+    "Bottom Center" => position.bottom_center
+    "Middle Right"  => position.middle_right
+    "Middle Left"   => position.middle_left
+    =>                 position.top_right
+
+// ─── Helper: format a stats table cell ────────────────────────────────────
+f_cell(int cnt, int n) =>
+    n == 0 ? "—" : str.tostring(cnt) + "/" + str.tostring(n) + "  " + str.tostring(math.round(cnt * 100.0 / n)) + "%"
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECURITY CALLS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// NWOG — weekly ETH timestamps + 4H price override
+int wk_t_start = request.security(syminfo.tickerid, "1W", time,       lookahead=barmerge.lookahead_on)
+int wk_t_end   = request.security(syminfo.tickerid, "1W", time_close, lookahead=barmerge.lookahead_on)
+[isNewWeek_4h, h4_prev, h4_open] = request.security(syminfo.tickerid, "240", [ta.change(time("W")) != 0, close[1], open], lookahead=barmerge.lookahead_on)
+
+// ORG — 15-min bar data fetched as plain scalars; ta.change() evaluated at CHART level
+// so is_at_930am / is_at_415pm fire exactly once per new 15-min period (not every sub-bar)
+int   time_15m       = request.security(syminfo.tickerid, "15", time,       lookahead=barmerge.lookahead_on)
+int   time_close_15m = request.security(syminfo.tickerid, "15", time_close, lookahead=barmerge.lookahead_on)
+float open_15m       = request.security(syminfo.tickerid, "15", open,       lookahead=barmerge.lookahead_on)
+float close_15m      = request.security(syminfo.tickerid, "15", close,      lookahead=barmerge.lookahead_on)
+float high_15m       = request.security(syminfo.tickerid, "15", high,       lookahead=barmerge.lookahead_on)
+float low_15m        = request.security(syminfo.tickerid, "15", low,        lookahead=barmerge.lookahead_on)
+
+bool is_new_15m  = ta.change(time_15m) != 0
+bool is_at_930am = is_new_15m and hour(time_15m, "America/New_York") == 9  and minute(time_15m, "America/New_York") == 30
+bool is_at_415pm = is_new_15m and hour(time_15m, "America/New_York") == 16 and minute(time_15m, "America/New_York") == 0
+bool is_at_noon  = is_new_15m and hour(time_15m, "America/New_York") == 12 and minute(time_15m, "America/New_York") == 0
+
+int ts_930 = time_15m  // 9:30am bar timestamp — used as box left edge
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  GAP DETECTION & PRICES
+// ═══════════════════════════════════════════════════════════════════════════
+bool is_new_week    = ta.change(time("W")) != 0
+bool is_day_change  = ta.change(dayofmonth(time, "America/New_York")) != 0
+bool is_midnight    = is_day_change and hour(time, "America/New_York") == 0
+bool is_sunday_open = is_day_change and dayofweek(time, "America/New_York") == dayofweek.sunday
+
+float box_h = timeframe.multiplier < 60 and isNewWeek_4h ? math.max(h4_prev, h4_open) : math.max(close[1], open)
+float box_l = timeframe.multiplier < 60 and isNewWeek_4h ? math.min(h4_prev, h4_open) : math.min(close[1], open)
+
+// Saved RTH boundary prices (persist across bars)
+var float prev_rth_close   = na  // 4:15pm close saved here each day
+var int   prev_rth_close_t = na  // 4:15pm timestamp
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PERSISTENT ARRAYS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// NWOG
+var float[] a_h   = array.new_float()
+var float[] a_l   = array.new_float()
+var box[]   a_box = array.new_box()
+var line[]  a_ce  = array.new_line()
+
+// Midnight lines
+var line[] mid_lines = array.new_line()
+var line[] sun_lines = array.new_line()
+
+// ORG
+var float[] org_ah        = array.new_float()
+var float[] org_al        = array.new_float()
+var box[]   org_box       = array.new_box()   // filled box: 9:30am → latest candle
+var box[]   org_connector = array.new_box()   // border-only box: 4:15pm → 9:30am
+var line[]  org_ace       = array.new_line()
+
+// ORG STATS — per-day tracking state
+var float trk_org_h      = na
+var float trk_org_l      = na
+var bool  trk_gap_up     = true
+var float trk_am_h       = na
+var float trk_am_l       = na
+var float trk_day_h      = na
+var float trk_day_l      = na
+var float trk_am_h_saved = na
+var float trk_am_l_saved = na
+var bool  trk_noon_done  = false
+
+// ORG STATS — result history (one entry per completed day)
+var bool[] res_am_25   = array.new_bool()
+var bool[] res_am_50   = array.new_bool()
+var bool[] res_am_100  = array.new_bool()
+var bool[] res_day_25  = array.new_bool()
+var bool[] res_day_50  = array.new_bool()
+var bool[] res_day_100 = array.new_bool()
+
+// ORG STATS — table
+var table stats_tbl = na
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LATEST BAR EXTENSION TIMESTAMP (used by all draw blocks)
+// ═══════════════════════════════════════════════════════════════════════════
+int latest_t = time + timeframe.in_seconds() * 1000 * (extend_bars + 1)
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  NWOG — DRAW ON NEW WEEK
+// ═══════════════════════════════════════════════════════════════════════════
+if is_new_week and (timeframe.isintraday or timeframe.isdaily) and box_h != box_l and not na(box_h)
+    float mid = (box_h + box_l) / 2.0
+
+    array.push(a_h,   box_h)
+    array.push(a_l,   box_l)
+    array.push(a_box, box.new(wk_t_start, box_h, wk_t_end, box_l, xloc=xloc.bar_time, bgcolor=show_zone ? zone_col : na, border_color=show_zone ? nwog_bdr_col : na, border_width=nwog_bw, border_style=nwog_border_style, text=show_lbl ? "NWOG" : "", text_size=lbl_sz, text_halign=lbl_halign, text_valign=lbl_valign, text_color=lbl_col))
+
+    if show_ce
+        array.push(a_ce, line.new(wk_t_start, mid, wk_t_end, mid, xloc=xloc.bar_time, color=ce_col, style=ce_ls, width=1))
+
+    if array.size(a_box) > eff_prev + 1
+        array.shift(a_h)
+        array.shift(a_l)
+        box.delete(array.shift(a_box))
+    if show_ce and array.size(a_ce) > eff_prev + 1
+        line.delete(array.shift(a_ce))
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ORG STATS — START TRACKING AT 9:30AM
+// ═══════════════════════════════════════════════════════════════════════════
+if is_at_930am and not na(prev_rth_close)
+    float s_h = math.max(prev_rth_close, open_15m)
+    float s_l = math.min(prev_rth_close, open_15m)
+    if s_h != s_l
+        trk_org_h     := s_h
+        trk_org_l     := s_l
+        trk_gap_up    := open_15m > prev_rth_close
+        trk_am_h      := open_15m
+        trk_am_l      := open_15m
+        trk_day_h     := open_15m
+        trk_day_l     := open_15m
+        trk_noon_done := false
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ORG STATS — UPDATE INTRADAY HIGH/LOW (every new 15-min bar)
+// ═══════════════════════════════════════════════════════════════════════════
+if is_new_15m and not na(trk_org_h) and timeframe.isintraday
+    int h_et  = hour(time_15m,   "America/New_York")
+    int m_et  = minute(time_15m, "America/New_York")
+    // RTH window: 9:30am up to and including the 4:00pm bar (closes 4:15pm)
+    bool in_rth = (h_et == 9 and m_et >= 30) or (h_et >= 10 and h_et < 16) or (h_et == 16 and m_et == 0)
+    bool in_am  = in_rth and h_et < 12
+    if in_rth
+        trk_day_h := math.max(trk_day_h, high_15m)
+        trk_day_l := math.min(trk_day_l, low_15m)
+    if in_am and not trk_noon_done
+        trk_am_h := math.max(trk_am_h, high_15m)
+        trk_am_l := math.min(trk_am_l, low_15m)
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ORG STATS — FREEZE AM RESULT AT NOON
+// ═══════════════════════════════════════════════════════════════════════════
+if is_at_noon and not na(trk_org_h) and not trk_noon_done
+    trk_am_h_saved := trk_am_h
+    trk_am_l_saved := trk_am_l
+    trk_noon_done  := true
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ORG STATS — EVALUATE FILLS AT 4:15PM
+// ═══════════════════════════════════════════════════════════════════════════
+if is_at_415pm and not na(trk_org_h)
+    float gap = trk_org_h - trk_org_l
+    if gap > 0
+        float am_h  = trk_noon_done ? trk_am_h_saved : trk_am_h
+        float am_l  = trk_noon_done ? trk_am_l_saved : trk_am_l
+        bool am25  = false
+        bool am50  = false
+        bool am100 = false
+        bool d25   = false
+        bool d50   = false
+        bool d100  = false
+        if trk_gap_up
+            // Gap up: fill = price retracing down into the gap
+            am25  := am_l      <= trk_org_h - 0.25 * gap
+            am50  := am_l      <= trk_org_h - 0.50 * gap
+            am100 := am_l      <= trk_org_l
+            d25   := trk_day_l <= trk_org_h - 0.25 * gap
+            d50   := trk_day_l <= trk_org_h - 0.50 * gap
+            d100  := trk_day_l <= trk_org_l
+        else
+            // Gap down: fill = price retracing up into the gap
+            am25  := am_h      >= trk_org_l + 0.25 * gap
+            am50  := am_h      >= trk_org_l + 0.50 * gap
+            am100 := am_h      >= trk_org_h
+            d25   := trk_day_h >= trk_org_l + 0.25 * gap
+            d50   := trk_day_h >= trk_org_l + 0.50 * gap
+            d100  := trk_day_h >= trk_org_h
+        array.push(res_am_25,   am25)
+        array.push(res_am_50,   am50)
+        array.push(res_am_100,  am100)
+        array.push(res_day_25,  d25)
+        array.push(res_day_50,  d50)
+        array.push(res_day_100, d100)
+    trk_org_h := na
+    trk_org_l := na
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ORG — SAVE 4:15PM CLOSE EACH DAY
+// ═══════════════════════════════════════════════════════════════════════════
+if is_at_415pm
+    prev_rth_close   := close_15m
+    prev_rth_close_t := time_close_15m
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ORG — RESET DISPLAY ON NEW WEEK (keep saved prices for Monday's ORG)
+// ═══════════════════════════════════════════════════════════════════════════
+if is_new_week
+    int n = array.size(org_box)
+    if n > 0
+        for i = 0 to n - 1
+            box.delete(array.get(org_box, i))
+    n := array.size(org_connector)
+    if n > 0
+        for i = 0 to n - 1
+            box.delete(array.get(org_connector, i))
+    n := array.size(org_ace)
+    if n > 0
+        for i = 0 to n - 1
+            line.delete(array.get(org_ace, i))
+    array.clear(org_ah)
+    array.clear(org_al)
+    array.clear(org_box)
+    array.clear(org_connector)
+    array.clear(org_ace)
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ORG — DRAW AT 9:30AM (only after RTH open, using saved 4:15pm close)
+// ═══════════════════════════════════════════════════════════════════════════
+if is_at_930am and not na(prev_rth_close) and (timeframe.isintraday or timeframe.isdaily)
+    float org_h_val = math.max(prev_rth_close, open_15m)
+    float org_l_val = math.min(prev_rth_close, open_15m)
+    if org_h_val != org_l_val
+        float org_mid = (org_h_val + org_l_val) / 2.0
+
+        array.push(org_ah, org_h_val)
+        array.push(org_al, org_l_val)
+
+        // Border-only connector: 4:15pm → 9:30am (shows the overnight gap range)
+        array.push(org_connector, box.new(prev_rth_close_t, org_h_val, ts_930, org_l_val, xloc=xloc.bar_time, bgcolor=na, border_width=1, border_color=show_org ? org_col : na))
+
+        // Filled box: 9:30am → latest candle (extended every bar)
+        array.push(org_box, box.new(ts_930, org_h_val, latest_t, org_l_val, xloc=xloc.bar_time, bgcolor=show_org ? org_col : na, border_color=show_org ? org_bdr_col : na, border_width=org_bw, border_style=org_border_style, text=show_org_lbl ? "ORG" : "", text_size=org_lbl_sz, text_halign=org_lbl_halign, text_valign=org_lbl_valign, text_color=org_lbl_col))
+
+        if show_org_ce
+            array.push(org_ace, line.new(ts_930, org_mid, latest_t, org_mid, xloc=xloc.bar_time, color=org_ce_col, style=org_ce_ls, width=1))
+
+        if array.size(org_box) > eff_prev_org + 1
+            array.shift(org_ah)
+            array.shift(org_al)
+            box.delete(array.shift(org_box))
+            box.delete(array.shift(org_connector))
+        if show_org_ce and array.size(org_ace) > eff_prev_org + 1
+            line.delete(array.shift(org_ace))
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  NWOG — EVERY BAR: lock prices + extend to latest candle
+// ═══════════════════════════════════════════════════════════════════════════
+int nb = array.size(a_box)
+if nb > 0
+    int nc = array.size(a_ce)
+    for i = 0 to nb - 1
+        bool is_cur = i == nb - 1
+        box.set_top(   array.get(a_box, i), array.get(a_h, i))
+        box.set_bottom(array.get(a_box, i), array.get(a_l, i))
+        if is_cur or ext_prev
+            box.set_right(array.get(a_box, i), latest_t)
+        box.set_bgcolor(      array.get(a_box, i), show_zone ? (is_cur ? zone_col : prev_col) : na)
+        box.set_border_color( array.get(a_box, i), show_zone ? (is_cur ? nwog_bdr_col : prev_col) : na)
+        box.set_border_width( array.get(a_box, i), show_zone ? nwog_bw : 0)
+        box.set_border_style( array.get(a_box, i), nwog_border_style)
+        box.set_text(         array.get(a_box, i), show_zone and show_lbl ? (is_cur ? "NWOG" : "NWOG -" + str.tostring(nb - 1 - i)) : "")
+    if nc > 0
+        for i = 0 to nc - 1
+            if i == nc - 1 or ext_prev
+                line.set_x2(array.get(a_ce, i), latest_t)
+            line.set_color(array.get(a_ce, i), show_zone ? (i == nc - 1 ? ce_col : prev_col) : na)
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ORG — EVERY BAR: lock prices + extend to latest candle
+// ═══════════════════════════════════════════════════════════════════════════
+int nb_org = array.size(org_box)
+if nb_org > 0
+    int nc_org = array.size(org_ace)
+    for i = 0 to nb_org - 1
+        bool  is_cur_org  = i == nb_org - 1
+        color org_zone_col = show_org ? (is_cur_org ? org_col : prev_org_col) : na
+
+        // Filled box
+        box.set_top(   array.get(org_box, i), array.get(org_ah, i))
+        box.set_bottom(array.get(org_box, i), array.get(org_al, i))
+        if is_cur_org or ext_prev_org
+            box.set_right(array.get(org_box, i), latest_t)
+        box.set_bgcolor(      array.get(org_box, i), org_zone_col)
+        box.set_border_color( array.get(org_box, i), show_org ? (is_cur_org ? org_bdr_col : prev_org_col) : na)
+        box.set_border_width( array.get(org_box, i), show_org ? org_bw : 0)
+        box.set_border_style( array.get(org_box, i), org_border_style)
+        box.set_text(         array.get(org_box, i), show_org and show_org_lbl ? (is_cur_org ? "ORG" : "ORG -" + str.tostring(nb_org - 1 - i)) : "")
+
+        // Connector box (lock prices + sync border color)
+        box.set_top(          array.get(org_connector, i), array.get(org_ah, i))
+        box.set_bottom(       array.get(org_connector, i), array.get(org_al, i))
+        box.set_border_color( array.get(org_connector, i), org_zone_col)
+
+    if nc_org > 0
+        for i = 0 to nc_org - 1
+            if i == nc_org - 1 or ext_prev_org
+                line.set_x2(array.get(org_ace, i), latest_t)
+            line.set_color(array.get(org_ace, i), show_org ? (i == nc_org - 1 ? org_ce_col : prev_org_col) : na)
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  MIDNIGHT LINE — DRAW ON NEW DAY (ET timezone)
+// ═══════════════════════════════════════════════════════════════════════════
+if is_midnight and timeframe.isintraday
+    array.push(mid_lines, line.new(time, high, time, low, xloc=xloc.bar_time, extend=extend.both, color=mid_show ? mid_col : na, style=mid_ls, width=mid_width))
+
+// MIDNIGHT LINE — EVERY BAR: trim to count, sync color/style changes
+int nm = array.size(mid_lines)
+if nm > mid_prev
+    int mid_excess = nm - mid_prev
+    for _i = 0 to mid_excess - 1
+        line.delete(array.shift(mid_lines))
+    nm := array.size(mid_lines)
+if nm > 0
+    for i = 0 to nm - 1
+        line.set_color(array.get(mid_lines, i), mid_show ? mid_col : na)
+        line.set_style(array.get(mid_lines, i), mid_ls)
+        line.set_width(array.get(mid_lines, i), mid_width)
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SUNDAY OPEN LINE — DRAW AT 18:00 ET SUNDAY
+// ═══════════════════════════════════════════════════════════════════════════
+if is_sunday_open and timeframe.isintraday
+    array.push(sun_lines, line.new(time, high, time, low, xloc=xloc.bar_time, extend=extend.both, color=sun_show ? sun_col : na, style=sun_ls, width=sun_width))
+
+// SUNDAY OPEN LINE — EVERY BAR: trim to count, sync color/style changes
+int ns = array.size(sun_lines)
+if ns > sun_prev
+    int sun_excess = ns - sun_prev
+    for _i = 0 to sun_excess - 1
+        line.delete(array.shift(sun_lines))
+    ns := array.size(sun_lines)
+if ns > 0
+    for i = 0 to ns - 1
+        line.set_color(array.get(sun_lines, i), sun_show ? sun_col : na)
+        line.set_style(array.get(sun_lines, i), sun_ls)
+        line.set_width(array.get(sun_lines, i), sun_width)
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ORG STATS — TABLE (rendered on last bar only)
+// ═══════════════════════════════════════════════════════════════════════════
+if barstate.islast
+    if stats_show and timeframe.isintraday
+        int n_data  = array.size(res_day_25)
+        int lb      = math.min(n_data, stats_days)
+        int off     = n_data - lb
+        int cnt_d25  = 0
+        int cnt_d50  = 0
+        int cnt_d100 = 0
+        int cnt_a25  = 0
+        int cnt_a50  = 0
+        int cnt_a100 = 0
+        if lb > 0
+            for i = off to n_data - 1
+                if array.get(res_day_25,  i)
+                    cnt_d25  += 1
+                if array.get(res_day_50,  i)
+                    cnt_d50  += 1
+                if array.get(res_day_100, i)
+                    cnt_d100 += 1
+                if array.get(res_am_25,   i)
+                    cnt_a25  += 1
+                if array.get(res_am_50,   i)
+                    cnt_a50  += 1
+                if array.get(res_am_100,  i)
+                    cnt_a100 += 1
+        if na(stats_tbl)
+            stats_tbl := table.new(stats_tbl_pos, 3, 4,
+                 bgcolor=stats_bg_col,
+                 border_color=color.new(color.gray, 60), border_width=1,
+                 frame_color=color.new(color.gray, 40),  frame_width=1)
+        // Row 0: header (title + column labels)
+        table.cell(stats_tbl, 0, 0, "ORG Fill (" + str.tostring(lb) + "d)",
+             text_color=stats_hdr_txt, text_size=stats_sz,
+             bgcolor=stats_hdr_col, text_halign=text.align_center)
+        table.cell(stats_tbl, 1, 0, "Same Day\n9:30–4:15",
+             text_color=stats_hdr_txt, text_size=stats_sz,
+             bgcolor=stats_hdr_col, text_halign=text.align_center)
+        table.cell(stats_tbl, 2, 0, "AM Session\n9:30–12:00",
+             text_color=stats_hdr_txt, text_size=stats_sz,
+             bgcolor=stats_hdr_col, text_halign=text.align_center)
+        // Row 1: ≥ 25%
+        table.cell(stats_tbl, 0, 1, "≥ 25%",
+             text_color=stats_txt_col, text_size=stats_sz, text_halign=text.align_left)
+        table.cell(stats_tbl, 1, 1, f_cell(cnt_d25,  lb),
+             text_color=stats_txt_col, text_size=stats_sz, text_halign=text.align_center)
+        table.cell(stats_tbl, 2, 1, f_cell(cnt_a25,  lb),
+             text_color=stats_txt_col, text_size=stats_sz, text_halign=text.align_center)
+        // Row 2: ≥ 50%
+        table.cell(stats_tbl, 0, 2, "≥ 50%",
+             text_color=stats_txt_col, text_size=stats_sz, text_halign=text.align_left)
+        table.cell(stats_tbl, 1, 2, f_cell(cnt_d50,  lb),
+             text_color=stats_txt_col, text_size=stats_sz, text_halign=text.align_center)
+        table.cell(stats_tbl, 2, 2, f_cell(cnt_a50,  lb),
+             text_color=stats_txt_col, text_size=stats_sz, text_halign=text.align_center)
+        // Row 3: 100%
+        table.cell(stats_tbl, 0, 3, "100%",
+             text_color=stats_txt_col, text_size=stats_sz, text_halign=text.align_left)
+        table.cell(stats_tbl, 1, 3, f_cell(cnt_d100, lb),
+             text_color=stats_txt_col, text_size=stats_sz, text_halign=text.align_center)
+        table.cell(stats_tbl, 2, 3, f_cell(cnt_a100, lb),
+             text_color=stats_txt_col, text_size=stats_sz, text_halign=text.align_center)
+    else if not na(stats_tbl)
+        table.delete(stats_tbl)
+        stats_tbl := na
