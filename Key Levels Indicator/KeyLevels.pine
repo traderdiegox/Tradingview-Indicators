@@ -240,9 +240,12 @@ string box_lbl_size = input.string("small", "",           group=GKL, inline="bl"
 // INPUTS — KEY LIQUIDITY LINES
 // ════════════════════════════════════════════════════════════════════════════
 string GLL = "📐  Key Liquidity Lines"
-bool   show_sl_lines = input.bool(true,  "Session Level Lines",  group=GLL)
-bool   sl_hide_taken = input.bool(true,  "Hide after taken (Candles)", group=GLL, inline="sl_taken")
-int    sl_grace      = input.int(20,     "",                           group=GLL, inline="sl_taken", minval=0, maxval=500)
+bool   show_sl_lines = input.bool(true,  "Session Level Lines",             group=GLL)
+bool   sl_hide_taken = input.bool(false, "Auto-hide after taken (Candles)", group=GLL, inline="sl_taken")
+int    sl_grace      = input.int(20,     "",                                group=GLL, inline="sl_taken", minval=0, maxval=500)
+bool   sl_show_price = input.bool(false, "Show Price in Label",             group=GLL)
+string sl_h_lbl_pos  = input.string("Right", "High Label Pos", options=["Left","Center","Right"], group=GLL, inline="sl_lbl_pos")
+string sl_l_lbl_pos  = input.string("Right", "Low Label Pos",  options=["Left","Center","Right"], group=GLL, inline="sl_lbl_pos")
 string sl_sty_in     = input.string("Solid",  "Line Style",  options=["Solid","Dashed","Dotted"], group=GLL)
 int    sl_w          = input.int(1, "Thickness", minval=1, maxval=4, group=GLL)
 string sl_lbl_sz     = input.string("small", "Label Size",   options=["tiny","small","normal","large"], group=GLL)
@@ -267,6 +270,21 @@ lbl_sz(s) =>
         "large"  => size.large
         "normal" => size.normal
         =>          size.small
+
+sl_h_style(pos) =>
+    switch pos
+        "Left"   => label.style_label_upper_left
+        "Center" => label.style_label_upper_center
+        =>          label.style_label_upper_right
+
+sl_l_style(pos) =>
+    switch pos
+        "Left"   => label.style_label_lower_left
+        "Center" => label.style_label_lower_center
+        =>          label.style_label_lower_right
+
+sl_lbl_txt(nm, prc) =>
+    sl_show_price ? nm + " (" + str.tostring(prc, format.mintick) + ")" : nm
 
 bx_halign(pos) =>
     switch pos
@@ -498,9 +516,9 @@ if asia_start and tf_ok
     hl = line.new(time + bar_ms, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
     ll = line.new(time + bar_ms, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "AS High", xloc=xloc.bar_time,
-                       style=label.style_label_left, color=na, textcolor=na, size=size.small)
+                       style=sl_h_style(sl_h_lbl_pos), color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "AS Low",  xloc=xloc.bar_time,
-                       style=label.style_label_left, color=na, textcolor=na, size=size.small)
+                       style=sl_l_style(sl_l_lbl_pos), color=na, textcolor=na, size=size.small)
     array.push(asia_hl_lns, hl)
     array.push(asia_ll_lns, ll)
     array.push(asia_hl_tkn, na)
@@ -578,10 +596,14 @@ if n_asia > 0
         label ll_lbl_a = array.get(asia_ll_lbls, i)
         label.set_x(hl_lbl_a, time + extend_ms)
         label.set_y(hl_lbl_a, h_prc_a)
+        label.set_style(hl_lbl_a, sl_h_style(sl_h_lbl_pos))
+        label.set_text(hl_lbl_a, sl_lbl_txt("AS High", h_prc_a))
         label.set_size(hl_lbl_a, lbl_sz(sl_lbl_sz))
         label.set_textcolor(hl_lbl_a, h_vis_a ? color.new(asia_col, 0) : na)
         label.set_x(ll_lbl_a, time + extend_ms)
         label.set_y(ll_lbl_a, l_prc_a)
+        label.set_style(ll_lbl_a, sl_l_style(sl_l_lbl_pos))
+        label.set_text(ll_lbl_a, sl_lbl_txt("AS Low", l_prc_a))
         label.set_size(ll_lbl_a, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_a, l_vis_a ? color.new(asia_col, 0) : na)
 
@@ -619,9 +641,9 @@ if lon_start and tf_ok
     hl = line.new(time + bar_ms, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
     ll = line.new(time + bar_ms, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "LO High", xloc=xloc.bar_time,
-                       style=label.style_label_left, color=na, textcolor=na, size=size.small)
+                       style=sl_h_style(sl_h_lbl_pos), color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "LO Low",  xloc=xloc.bar_time,
-                       style=label.style_label_left, color=na, textcolor=na, size=size.small)
+                       style=sl_l_style(sl_l_lbl_pos), color=na, textcolor=na, size=size.small)
     array.push(lon_hl_lns, hl)
     array.push(lon_ll_lns, ll)
     array.push(lon_hl_tkn, na)
@@ -699,10 +721,14 @@ if n_lon > 0
         label ll_lbl_l = array.get(lon_ll_lbls, i)
         label.set_x(hl_lbl_l, time + extend_ms)
         label.set_y(hl_lbl_l, h_prc_l)
+        label.set_style(hl_lbl_l, sl_h_style(sl_h_lbl_pos))
+        label.set_text(hl_lbl_l, sl_lbl_txt("LO High", h_prc_l))
         label.set_size(hl_lbl_l, lbl_sz(sl_lbl_sz))
         label.set_textcolor(hl_lbl_l, h_vis_l ? color.new(lon_col, 0) : na)
         label.set_x(ll_lbl_l, time + extend_ms)
         label.set_y(ll_lbl_l, l_prc_l)
+        label.set_style(ll_lbl_l, sl_l_style(sl_l_lbl_pos))
+        label.set_text(ll_lbl_l, sl_lbl_txt("LO Low", l_prc_l))
         label.set_size(ll_lbl_l, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_l, l_vis_l ? color.new(lon_col, 0) : na)
 
@@ -740,9 +766,9 @@ if nyam_start and tf_ok
     hl = line.new(time + bar_ms, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
     ll = line.new(time + bar_ms, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "AM High", xloc=xloc.bar_time,
-                       style=label.style_label_left, color=na, textcolor=na, size=size.small)
+                       style=sl_h_style(sl_h_lbl_pos), color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "AM Low",  xloc=xloc.bar_time,
-                       style=label.style_label_left, color=na, textcolor=na, size=size.small)
+                       style=sl_l_style(sl_l_lbl_pos), color=na, textcolor=na, size=size.small)
     array.push(nyam_hl_lns, hl)
     array.push(nyam_ll_lns, ll)
     array.push(nyam_hl_tkn, na)
@@ -820,10 +846,14 @@ if n_nyam > 0
         label ll_lbl_n = array.get(nyam_ll_lbls, i)
         label.set_x(hl_lbl_n, time + extend_ms)
         label.set_y(hl_lbl_n, h_prc_n)
+        label.set_style(hl_lbl_n, sl_h_style(sl_h_lbl_pos))
+        label.set_text(hl_lbl_n, sl_lbl_txt("AM High", h_prc_n))
         label.set_size(hl_lbl_n, lbl_sz(sl_lbl_sz))
         label.set_textcolor(hl_lbl_n, h_vis_n ? color.new(nyam_col, 0) : na)
         label.set_x(ll_lbl_n, time + extend_ms)
         label.set_y(ll_lbl_n, l_prc_n)
+        label.set_style(ll_lbl_n, sl_l_style(sl_l_lbl_pos))
+        label.set_text(ll_lbl_n, sl_lbl_txt("AM Low", l_prc_n))
         label.set_size(ll_lbl_n, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_n, l_vis_n ? color.new(nyam_col, 0) : na)
 
@@ -861,9 +891,9 @@ if lunch_start and tf_ok
     hl = line.new(time + bar_ms, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
     ll = line.new(time + bar_ms, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "Lunch High", xloc=xloc.bar_time,
-                       style=label.style_label_left, color=na, textcolor=na, size=size.small)
+                       style=sl_h_style(sl_h_lbl_pos), color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "Lunch Low",  xloc=xloc.bar_time,
-                       style=label.style_label_left, color=na, textcolor=na, size=size.small)
+                       style=sl_l_style(sl_l_lbl_pos), color=na, textcolor=na, size=size.small)
     array.push(lunch_hl_lns, hl)
     array.push(lunch_ll_lns, ll)
     array.push(lunch_hl_tkn, na)
@@ -941,10 +971,14 @@ if n_lunch > 0
         label ll_lbl_u = array.get(lunch_ll_lbls, i)
         label.set_x(hl_lbl_u, time + extend_ms)
         label.set_y(hl_lbl_u, h_prc_u)
+        label.set_style(hl_lbl_u, sl_h_style(sl_h_lbl_pos))
+        label.set_text(hl_lbl_u, sl_lbl_txt("Lunch High", h_prc_u))
         label.set_size(hl_lbl_u, lbl_sz(sl_lbl_sz))
         label.set_textcolor(hl_lbl_u, h_vis_u ? color.new(lunch_col, 0) : na)
         label.set_x(ll_lbl_u, time + extend_ms)
         label.set_y(ll_lbl_u, l_prc_u)
+        label.set_style(ll_lbl_u, sl_l_style(sl_l_lbl_pos))
+        label.set_text(ll_lbl_u, sl_lbl_txt("Lunch Low", l_prc_u))
         label.set_size(ll_lbl_u, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_u, l_vis_u ? color.new(lunch_col, 0) : na)
 
@@ -982,9 +1016,9 @@ if nypm_start and tf_ok
     hl = line.new(time + bar_ms, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
     ll = line.new(time + bar_ms, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "PM High", xloc=xloc.bar_time,
-                       style=label.style_label_left, color=na, textcolor=na, size=size.small)
+                       style=sl_h_style(sl_h_lbl_pos), color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "PM Low",  xloc=xloc.bar_time,
-                       style=label.style_label_left, color=na, textcolor=na, size=size.small)
+                       style=sl_l_style(sl_l_lbl_pos), color=na, textcolor=na, size=size.small)
     array.push(nypm_hl_lns, hl)
     array.push(nypm_ll_lns, ll)
     array.push(nypm_hl_tkn, na)
@@ -1062,10 +1096,14 @@ if n_nypm > 0
         label ll_lbl_p = array.get(nypm_ll_lbls, i)
         label.set_x(hl_lbl_p, time + extend_ms)
         label.set_y(hl_lbl_p, h_prc_p)
+        label.set_style(hl_lbl_p, sl_h_style(sl_h_lbl_pos))
+        label.set_text(hl_lbl_p, sl_lbl_txt("PM High", h_prc_p))
         label.set_size(hl_lbl_p, lbl_sz(sl_lbl_sz))
         label.set_textcolor(hl_lbl_p, h_vis_p ? color.new(nypm_col, 0) : na)
         label.set_x(ll_lbl_p, time + extend_ms)
         label.set_y(ll_lbl_p, l_prc_p)
+        label.set_style(ll_lbl_p, sl_l_style(sl_l_lbl_pos))
+        label.set_text(ll_lbl_p, sl_lbl_txt("PM Low", l_prc_p))
         label.set_size(ll_lbl_p, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_p, l_vis_p ? color.new(nypm_col, 0) : na)
 
