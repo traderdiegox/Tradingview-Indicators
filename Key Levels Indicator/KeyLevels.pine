@@ -13,8 +13,8 @@ string tz      = input.string("America/New_York", "Timezone",
     options=["America/New_York","America/Chicago","America/Los_Angeles",
              "Europe/London","Europe/Berlin","Asia/Tokyo","Asia/Singapore"],
     group=GEN)
-int  prev_days   = input.int(0,  "Previous Sessions",      minval=0, maxval=10, group=GEN)
-int  prev_opens  = input.int(1,  "Previous Opens (days)",   minval=0, maxval=10, group=GEN)
+int  prev_days   = input.int(0,  "Show Previous Sessions",  minval=0, maxval=10, group=GEN)
+int  prev_opens  = input.int(1,  "Show Previous Opens",     minval=0, maxval=10, group=GEN)
 string bsty_in = input.string("Dotted", "Box Border Style",
     options=["Solid","Dashed","Dotted"], group=GEN)
 int  bw_in      = input.int(1, "Box Border Width", minval=1, maxval=4, group=GEN)
@@ -39,19 +39,20 @@ int    pdl_w      = input.int(1, "", minval=1, maxval=4,  group=GDW, inline="pdl
 string pdl_lbl    = input.string("PDL", "",               group=GDW, inline="pdl")
 
 bool   show_pwh   = input.bool(true,  "PWH",  group=GDW, inline="pwh")
-color  pwh_col    = input.color(color.new(#FF9800,  0),  "", group=GDW, inline="pwh")
+color  pwh_col    = input.color(color.new(#2196F3,  0),  "", group=GDW, inline="pwh")
 string pwh_sty_in = input.string("Dashed", "", options=["Solid","Dashed","Dotted"], group=GDW, inline="pwh")
 int    pwh_w      = input.int(1, "", minval=1, maxval=4,  group=GDW, inline="pwh")
 string pwh_lbl    = input.string("PWH", "",               group=GDW, inline="pwh")
 
 bool   show_pwl   = input.bool(true,  "PWL",  group=GDW, inline="pwl")
-color  pwl_col    = input.color(color.new(#40C4FF,  0),  "", group=GDW, inline="pwl")
+color  pwl_col    = input.color(color.new(#F44336,  0),  "", group=GDW, inline="pwl")
 string pwl_sty_in = input.string("Dashed", "", options=["Solid","Dashed","Dotted"], group=GDW, inline="pwl")
 int    pwl_w      = input.int(1, "", minval=1, maxval=4,  group=GDW, inline="pwl")
 string pwl_lbl    = input.string("PWL", "",               group=GDW, inline="pwl")
 
-bool   dw_hide_taken = input.bool(true, "Hide after taken (Candles)", group=GDW, inline="dw_taken")
-int    dw_grace      = input.int(20,    "",                           group=GDW, inline="dw_taken", minval=0, maxval=500)
+int    dw_grace      = input.int(0,       "Extend after taken (Candles)", group=GDW, minval=0, maxval=500)
+bool   dw_show_price = input.bool(true,  "Show Price in Label",          group=GDW)
+string dw_lbl_pos    = input.string("Right", "Label Position", options=["Left","Center","Right"], group=GDW)
 
 // ════════════════════════════════════════════════════════════════════════════
 // INPUTS — OPENS
@@ -62,7 +63,7 @@ bool   show_mid    = input.bool(true,  "Midnight Open",   group=GOP, inline="mid
 color  mid_col     = input.color(color.new(#F44336, 70),  "", group=GOP, inline="mid")
 string mid_sty_in  = input.string("Dotted", "",  options=["Solid","Dashed","Dotted"], group=GOP, inline="mid")
 int    mid_w       = input.int(1, "", minval=1, maxval=4,  group=GOP, inline="mid")
-bool   show_mid_h  = input.bool(false, "H-Line",           group=GOP, inline="mid")
+bool   show_mid_h  = input.bool(true,  "H-Line",           group=GOP, inline="mid")
 
 bool   show_830    = input.bool(true,  "8:30 Open",        group=GOP, inline="830")
 color  col_830     = input.color(color.new(#616161, 0),    "", group=GOP, inline="830")
@@ -70,16 +71,21 @@ string sty_830_in  = input.string("Dotted", "",  options=["Solid","Dashed","Dott
 int    w_830       = input.int(1, "", minval=1, maxval=4,  group=GOP, inline="830")
 bool   show_830_h  = input.bool(false, "H-Line",           group=GOP, inline="830")
 
-bool   show_930    = input.bool(true,  "CME Open 9:30",    group=GOP, inline="930")
+bool   show_930    = input.bool(true,  "9:30am Open",      group=GOP, inline="930")
 color  col_930     = input.color(color.new(#616161, 0),    "", group=GOP, inline="930")
 string sty_930_in  = input.string("Dotted", "",  options=["Solid","Dashed","Dotted"], group=GOP, inline="930")
 int    w_930       = input.int(1, "", minval=1, maxval=4,  group=GOP, inline="930")
 bool   show_930_h  = input.bool(false, "H-Line",           group=GOP, inline="930")
 
+bool   show_open_lbl  = input.bool(true,    "Open Labels",     group=GOP, inline="open_lbl")
+bool   open_lbl_price = input.bool(false,   "Show Price",      group=GOP, inline="open_lbl")
+string open_lbl_pos   = input.string("Right", "Label Position",options=["Left","Center","Right"], group=GOP)
+string open_lbl_sz    = input.string("small", "Label Size",    options=["tiny","small","normal","large"], group=GOP)
+
 // ════════════════════════════════════════════════════════════════════════════
 // INPUTS — KEY LIQUIDITY
 // ════════════════════════════════════════════════════════════════════════════
-string GKL = "🔑  Key Liquidity"
+string GKL = "🔑  Key Liquidity Boxes"
 
 // Time options must be inlined as a const literal per input (Pine limitation)
 // 00:00 → 23:45, 15-min steps
@@ -157,7 +163,7 @@ string nyam_s_in  = input.string("09:30", "",  group=GKL, inline="nyam",
              "18:00","18:15","18:30","18:45","19:00","19:15","19:30","19:45",
              "20:00","20:15","20:30","20:45","21:00","21:15","21:30","21:45",
              "22:00","22:15","22:30","22:45","23:00","23:15","23:30","23:45"])
-string nyam_e_in  = input.string("11:00", "—", group=GKL, inline="nyam",
+string nyam_e_in  = input.string("12:00", "—", group=GKL, inline="nyam",
     options=["00:00","00:15","00:30","00:45","01:00","01:15","01:30","01:45",
              "02:00","02:15","02:30","02:45","03:00","03:15","03:30","03:45",
              "04:00","04:15","04:30","04:45","05:00","05:15","05:30","05:45",
@@ -172,7 +178,7 @@ string nyam_e_in  = input.string("11:00", "—", group=GKL, inline="nyam",
              "22:00","22:15","22:30","22:45","23:00","23:15","23:30","23:45"])
 
 bool   show_lunch = input.bool(false, "Lunch Hour",     group=GKL, inline="lunch")
-color  lunch_col  = input.color(color.new(#FFEB3B, 85), "", group=GKL, inline="lunch")
+color  lunch_col  = input.color(color.new(#B2B2B2, 80), "", group=GKL, inline="lunch")
 string lunch_s_in = input.string("12:00", "",  group=GKL, inline="lunch",
     options=["00:00","00:15","00:30","00:45","01:00","01:15","01:30","01:45",
              "02:00","02:15","02:30","02:45","03:00","03:15","03:30","03:45",
@@ -247,7 +253,7 @@ bool   sl_show_nyam  = input.bool(true,  "NY AM",  group=GLL, inline="sl_sess")
 bool   sl_show_lunch = input.bool(true,  "Lunch",  group=GLL, inline="sl_sess")
 bool   sl_show_nypm  = input.bool(true,  "NY PM",  group=GLL, inline="sl_sess")
 int    sl_grace      = input.int(0,  "Extend after taken (Candles)",    group=GLL, minval=0, maxval=500)
-bool   sl_show_price = input.bool(false, "Show Price in Label", group=GLL)
+bool   sl_show_price = input.bool(true,  "Show Price in Label", group=GLL)
 string sl_lbl_pos    = input.string("Right", "Label Position",  options=["Left","Center","Right"], group=GLL)
 string sl_sty_in     = input.string("Solid",  "Line Style",  options=["Solid","Dashed","Dotted"], group=GLL)
 int    sl_w          = input.int(1, "Thickness", minval=1, maxval=4, group=GLL)
@@ -283,6 +289,9 @@ sl_lbl_x(pos, x1, x2) =>
 
 sl_lbl_txt(nm, prc) =>
     sl_show_price ? nm + " (" + str.tostring(prc, format.mintick) + ")" : nm
+
+dw_lbl_txt(nm, prc) =>
+    dw_show_price ? nm + " (" + str.tostring(prc, format.mintick) + ")" : nm
 
 // Label style for HIGH lines: anchor sits at the correct horizontal edge of the text box
 sl_lbl_sty_hi(pos) =>
@@ -344,14 +353,15 @@ f_trim_l(arr, max_n) =>
     while array.size(arr) > max_n
         line.delete(array.shift(arr))
 
-// Trim a set of parallel session arrays (box + 4 data arrays) to max_n
-f_trim_sess(bxs, his, los, lts, rts, max_n) =>
+// Trim a set of parallel session arrays (box + 5 data arrays) to max_n
+f_trim_sess(bxs, his, los, lts, rts, dyn, max_n) =>
     while array.size(bxs) > max_n
         box.delete(array.shift(bxs))
         array.shift(his)
         array.shift(los)
         array.shift(lts)
         array.shift(rts)
+        array.shift(dyn)
 
 // Trim session H/L extension line + label arrays (parallel to session box arrays)
 // htt/ltt = arrays storing the bar-time when session high/low was formed
@@ -366,10 +376,26 @@ f_trim_hl(hll, lll, hlt, llt, hla, lla, htt, ltt, max_n) =>
         array.shift(htt)
         array.shift(ltt)
 
+// Trim open-line arrays (vertical + h-line + label + day_n) together
+f_trim_open(vls, hls, lbls, dns, max_n) =>
+    while array.size(vls) > max_n
+        line.delete(array.shift(vls))
+        line.delete(array.shift(hls))
+        label.delete(array.shift(lbls))
+        array.shift(dns)
+
 // ════════════════════════════════════════════════════════════════════════════
 // OPEN LINE TRIGGERS
 // ════════════════════════════════════════════════════════════════════════════
 bool is_new_day = ta.change(dayofmonth(time, tz)) != 0
+bool new_day_d  = ta.change(time("D")) != 0   // fires at 6pm ET when CME session rolls
+bool new_week_w = ta.change(time("W")) != 0
+
+// Trading-day counter — increments every time the daily session rolls at 6pm.
+// Used to hide session boxes from previous days respecting the "Previous Sessions" input.
+var int tday_num = 0
+if new_day_d
+    tday_num += 1
 
 var bool mid_done  = false
 var bool a830_done = false
@@ -398,95 +424,131 @@ bool tf_ok     = timeframe.in_seconds() <= 3600  // hide session boxes above 1h
 // ════════════════════════════════════════════════════════════════════════════
 // OPEN LINES — ARRAYS
 // ════════════════════════════════════════════════════════════════════════════
-var line[] mid_vl  = array.new_line()
-var line[] mid_hl  = array.new_line()
-var line[] vl_830  = array.new_line()
-var line[] hl_830  = array.new_line()
-var line[] vl_930  = array.new_line()
-var line[] hl_930  = array.new_line()
+var line[]  mid_vl     = array.new_line()
+var line[]  mid_hl     = array.new_line()
+var label[] lbl_mid    = array.new_label()
+var int[]   mid_day_n  = array.new_int()
+var line[]  vl_830     = array.new_line()
+var line[]  hl_830     = array.new_line()
+var label[] lbl_830    = array.new_label()
+var int[]   a830_day_n = array.new_int()
+var line[]  vl_930     = array.new_line()
+var line[]  hl_930     = array.new_line()
+var label[] lbl_930    = array.new_label()
+var int[]   a930_day_n = array.new_int()
 
 // Draw on trigger — always create so toggling later reveals history
 if trig_mid
     l = line.new(time, high, time, low, xloc=xloc.bar_time,
                  extend=extend.both, color=mid_col, style=ls(mid_sty_in), width=mid_w)
     array.push(mid_vl, l)
-    f_trim_l(mid_vl, max_opens)
     hl = line.new(time, open, time + extend_ms, open, xloc=xloc.bar_time,
                   color=mid_col, style=ls(mid_sty_in), width=mid_w)
     array.push(mid_hl, hl)
-    f_trim_l(mid_hl, max_opens)
+    lb = label.new(time, open, "Midnight", xloc=xloc.bar_time,
+                   color=na, textcolor=na, size=size.small)
+    array.push(lbl_mid, lb)
+    array.push(mid_day_n, tday_num)
+    f_trim_open(mid_vl, mid_hl, lbl_mid, mid_day_n, max_opens)
 
 if trig_830
     l = line.new(time, high, time, low, xloc=xloc.bar_time,
                  extend=extend.both, color=col_830, style=ls(sty_830_in), width=w_830)
     array.push(vl_830, l)
-    f_trim_l(vl_830, max_opens)
     hl = line.new(time, open, time + extend_ms, open, xloc=xloc.bar_time,
                   color=col_830, style=ls(sty_830_in), width=w_830)
     array.push(hl_830, hl)
-    f_trim_l(hl_830, max_opens)
+    lb = label.new(time, open, "8:30am", xloc=xloc.bar_time,
+                   color=na, textcolor=na, size=size.small)
+    array.push(lbl_830, lb)
+    array.push(a830_day_n, tday_num)
+    f_trim_open(vl_830, hl_830, lbl_830, a830_day_n, max_opens)
 
 if trig_930
     l = line.new(time, high, time, low, xloc=xloc.bar_time,
                  extend=extend.both, color=col_930, style=ls(sty_930_in), width=w_930)
     array.push(vl_930, l)
-    f_trim_l(vl_930, max_opens)
     hl = line.new(time, open, time + extend_ms, open, xloc=xloc.bar_time,
                   color=col_930, style=ls(sty_930_in), width=w_930)
     array.push(hl_930, hl)
-    f_trim_l(hl_930, max_opens)
+    lb = label.new(time, open, "9:30am", xloc=xloc.bar_time,
+                   color=na, textcolor=na, size=size.small)
+    array.push(lbl_930, lb)
+    array.push(a930_day_n, tday_num)
+    f_trim_open(vl_930, hl_930, lbl_930, a930_day_n, max_opens)
 
-// Update every bar — required for toggle/color/style changes to take effect
-int n_mid_v = array.size(mid_vl)
-if n_mid_v > 0
-    for i = 0 to n_mid_v - 1
-        l = array.get(mid_vl, i)
-        line.set_color(l, show_mid ? mid_col : na)
-        line.set_width(l, show_mid ? mid_w : 0)
-        line.set_style(l, ls(mid_sty_in))
+// Update every bar — required for toggle/color/style/day-visibility changes to take effect
+int n_mid = array.size(mid_vl)
+if n_mid > 0
+    for i = 0 to n_mid - 1
+        bool day_ok_mid = tday_num - array.get(mid_day_n, i) <= prev_opens
+        line  lv_m  = array.get(mid_vl,  i)
+        line  lh_m  = array.get(mid_hl,  i)
+        label lb_m  = array.get(lbl_mid, i)
+        int   op_x1 = line.get_x1(lh_m)
+        int   op_x2 = time + extend_ms
+        float op_prc = line.get_y1(lh_m)
+        line.set_color(lv_m, show_mid and day_ok_mid ? mid_col : na)
+        line.set_width(lv_m, show_mid and day_ok_mid ? mid_w : 0)
+        line.set_style(lv_m, ls(mid_sty_in))
+        line.set_x2(lh_m, op_x2)
+        line.set_color(lh_m, show_mid and show_mid_h and day_ok_mid ? mid_col : na)
+        line.set_width(lh_m, show_mid and show_mid_h and day_ok_mid ? mid_w : 0)
+        line.set_style(lh_m, ls(mid_sty_in))
+        label.set_x(lb_m, sl_lbl_x(open_lbl_pos, op_x1, op_x2))
+        label.set_y(lb_m, op_prc)
+        label.set_style(lb_m, sl_lbl_sty_hi(open_lbl_pos))
+        label.set_text(lb_m, open_lbl_price ? "Midnight (" + str.tostring(op_prc, format.mintick) + ")" : "Midnight")
+        label.set_size(lb_m, lbl_sz(open_lbl_sz))
+        label.set_textcolor(lb_m, show_mid and show_open_lbl and day_ok_mid ? mid_col : na)
 
-int n_mid_h = array.size(mid_hl)
-if n_mid_h > 0
-    for i = 0 to n_mid_h - 1
-        l = array.get(mid_hl, i)
-        line.set_x2(l, time + extend_ms)
-        line.set_color(l, show_mid and show_mid_h ? mid_col : na)
-        line.set_width(l, show_mid and show_mid_h ? mid_w : 0)
-        line.set_style(l, ls(mid_sty_in))
+int n_830 = array.size(vl_830)
+if n_830 > 0
+    for i = 0 to n_830 - 1
+        bool day_ok_830 = tday_num - array.get(a830_day_n, i) <= prev_opens
+        line  lv_8  = array.get(vl_830,  i)
+        line  lh_8  = array.get(hl_830,  i)
+        label lb_8  = array.get(lbl_830, i)
+        int   op_x1 = line.get_x1(lh_8)
+        int   op_x2 = time + extend_ms
+        float op_prc = line.get_y1(lh_8)
+        line.set_color(lv_8, show_830 and day_ok_830 ? col_830 : na)
+        line.set_width(lv_8, show_830 and day_ok_830 ? w_830 : 0)
+        line.set_style(lv_8, ls(sty_830_in))
+        line.set_x2(lh_8, op_x2)
+        line.set_color(lh_8, show_830 and show_830_h and day_ok_830 ? col_830 : na)
+        line.set_width(lh_8, show_830 and show_830_h and day_ok_830 ? w_830 : 0)
+        line.set_style(lh_8, ls(sty_830_in))
+        label.set_x(lb_8, sl_lbl_x(open_lbl_pos, op_x1, op_x2))
+        label.set_y(lb_8, op_prc)
+        label.set_style(lb_8, sl_lbl_sty_hi(open_lbl_pos))
+        label.set_text(lb_8, open_lbl_price ? "8:30am (" + str.tostring(op_prc, format.mintick) + ")" : "8:30am")
+        label.set_size(lb_8, lbl_sz(open_lbl_sz))
+        label.set_textcolor(lb_8, show_830 and show_open_lbl and day_ok_830 ? col_830 : na)
 
-int n_830_v = array.size(vl_830)
-if n_830_v > 0
-    for i = 0 to n_830_v - 1
-        l = array.get(vl_830, i)
-        line.set_color(l, show_830 ? col_830 : na)
-        line.set_width(l, show_830 ? w_830 : 0)
-        line.set_style(l, ls(sty_830_in))
-
-int n_830_h = array.size(hl_830)
-if n_830_h > 0
-    for i = 0 to n_830_h - 1
-        l = array.get(hl_830, i)
-        line.set_x2(l, time + extend_ms)
-        line.set_color(l, show_830 and show_830_h ? col_830 : na)
-        line.set_width(l, show_830 and show_830_h ? w_830 : 0)
-        line.set_style(l, ls(sty_830_in))
-
-int n_930_v = array.size(vl_930)
-if n_930_v > 0
-    for i = 0 to n_930_v - 1
-        l = array.get(vl_930, i)
-        line.set_color(l, show_930 ? col_930 : na)
-        line.set_width(l, show_930 ? w_930 : 0)
-        line.set_style(l, ls(sty_930_in))
-
-int n_930_h = array.size(hl_930)
-if n_930_h > 0
-    for i = 0 to n_930_h - 1
-        l = array.get(hl_930, i)
-        line.set_x2(l, time + extend_ms)
-        line.set_color(l, show_930 and show_930_h ? col_930 : na)
-        line.set_width(l, show_930 and show_930_h ? w_930 : 0)
-        line.set_style(l, ls(sty_930_in))
+int n_930 = array.size(vl_930)
+if n_930 > 0
+    for i = 0 to n_930 - 1
+        bool day_ok_930 = tday_num - array.get(a930_day_n, i) <= prev_opens
+        line  lv_9  = array.get(vl_930,  i)
+        line  lh_9  = array.get(hl_930,  i)
+        label lb_9  = array.get(lbl_930, i)
+        int   op_x1 = line.get_x1(lh_9)
+        int   op_x2 = time + extend_ms
+        float op_prc = line.get_y1(lh_9)
+        line.set_color(lv_9, show_930 and day_ok_930 ? col_930 : na)
+        line.set_width(lv_9, show_930 and day_ok_930 ? w_930 : 0)
+        line.set_style(lv_9, ls(sty_930_in))
+        line.set_x2(lh_9, op_x2)
+        line.set_color(lh_9, show_930 and show_930_h and day_ok_930 ? col_930 : na)
+        line.set_width(lh_9, show_930 and show_930_h and day_ok_930 ? w_930 : 0)
+        line.set_style(lh_9, ls(sty_930_in))
+        label.set_x(lb_9, sl_lbl_x(open_lbl_pos, op_x1, op_x2))
+        label.set_y(lb_9, op_prc)
+        label.set_style(lb_9, sl_lbl_sty_hi(open_lbl_pos))
+        label.set_text(lb_9, open_lbl_price ? "9:30am (" + str.tostring(op_prc, format.mintick) + ")" : "9:30am")
+        label.set_size(lb_9, lbl_sz(open_lbl_sz))
+        label.set_textcolor(lb_9, show_930 and show_open_lbl and day_ok_930 ? col_930 : na)
 
 // ════════════════════════════════════════════════════════════════════════════
 // SESSION BOX MACRO (comment-based — repeated per session below)
@@ -516,6 +578,7 @@ var label[] asia_hl_lbls = array.new_label()
 var label[] asia_ll_lbls = array.new_label()
 var int[]   asia_hl_t    = array.new_int()   // stored high-bar times per session
 var int[]   asia_ll_t    = array.new_int()   // stored low-bar times per session
+var int[]   asia_day_n   = array.new_int()   // trading-day number when box was created
 
 bool asia_now   = f_in_sess(asia_sh, asia_sm, asia_eh, asia_em)
 bool asia_start = asia_now  and not asia_in
@@ -537,9 +600,9 @@ if asia_start and tf_ok
     hl = line.new(time, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
     ll = line.new(time, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "AS High", xloc=xloc.bar_time,
-                       style=label.style_label_down, color=na, textcolor=na, size=size.small)
+                       color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "AS Low",  xloc=xloc.bar_time,
-                       style=label.style_label_up, color=na, textcolor=na, size=size.small)
+                       color=na, textcolor=na, size=size.small)
     array.push(asia_hl_lns, hl)
     array.push(asia_ll_lns, ll)
     array.push(asia_hl_tkn, na)
@@ -548,7 +611,8 @@ if asia_start and tf_ok
     array.push(asia_ll_lbls, ll_lbl)
     array.push(asia_hl_t, time)
     array.push(asia_ll_t, time)
-    f_trim_sess(asia_bxs, asia_his, asia_los, asia_lt, asia_rt, max_ol)
+    array.push(asia_day_n, tday_num)
+    f_trim_sess(asia_bxs, asia_his, asia_los, asia_lt, asia_rt, asia_day_n, max_ol)
     f_trim_hl(asia_hl_lns, asia_ll_lns, asia_hl_tkn, asia_ll_tkn, asia_hl_lbls, asia_ll_lbls, asia_hl_t, asia_ll_t, max_ol)
 
 if asia_in and not asia_start
@@ -577,11 +641,12 @@ if n_asia > 0
         box.set_bottom(b,        array.get(asia_los, i))
         box.set_left(b,          array.get(asia_lt,  i))
         box.set_right(b,         array.get(asia_rt,  i))
-        box.set_bgcolor(b,       show_asia and tf_ok ? asia_col : na)
-        box.set_border_color(b,  show_asia and tf_ok ? color.new(asia_col, 0) : na)
-        box.set_border_width(b,  show_asia and tf_ok ? bw_in : 0)
+        bool day_ok_a = tday_num - array.get(asia_day_n, i) <= prev_days
+        box.set_bgcolor(b,       show_asia and tf_ok and day_ok_a ? asia_col : na)
+        box.set_border_color(b,  show_asia and tf_ok and day_ok_a ? color.new(asia_col, 0) : na)
+        box.set_border_width(b,  show_asia and tf_ok and day_ok_a ? bw_in : 0)
         box.set_border_style(b,  ls(bsty_in))
-        box.set_text(b,          show_asia and show_box_lbl ? "Asia" : "")
+        box.set_text(b,          show_asia and show_box_lbl and day_ok_a ? "Asia" : "")
         box.set_text_color(b,    box_lbl_col)
         box.set_text_size(b,     lbl_sz(box_lbl_size))
         box.set_text_halign(b,   bx_halign(box_lbl_pos))
@@ -596,30 +661,27 @@ if n_asia > 0
         int   l_tkn_a = array.get(asia_ll_tkn, i)
         if not live
             if na(h_tkn_a) and high >= h_prc_a
-                h_tkn_a := bar_index
-                array.set(asia_hl_tkn, i, bar_index)
+                h_tkn_a := time + sl_grace * bar_ms
+                array.set(asia_hl_tkn, i, h_tkn_a)
             if na(l_tkn_a) and low <= l_prc_a
-                l_tkn_a := bar_index
-                array.set(asia_ll_tkn, i, bar_index)
-        bool h_tk_a = not na(h_tkn_a)
-        bool l_tk_a = not na(l_tkn_a)
-        int  h_x2_a = h_tk_a ? time + (h_tkn_a - bar_index + sl_grace) * bar_ms : time + extend_ms
-        int  l_x2_a = l_tk_a ? time + (l_tkn_a - bar_index + sl_grace) * bar_ms : time + extend_ms
-        bool h_vis_a = show_sl_lines and sl_show_asia and tf_ok and not live
-        bool l_vis_a = show_sl_lines and sl_show_asia and tf_ok and not live
+                l_tkn_a := time + sl_grace * bar_ms
+                array.set(asia_ll_tkn, i, l_tkn_a)
+        int  h_x2_a = not na(h_tkn_a) ? h_tkn_a : time + extend_ms
+        int  l_x2_a = not na(l_tkn_a) ? l_tkn_a : time + extend_ms
+        bool vis_a   = show_sl_lines and sl_show_asia and tf_ok and not live and day_ok_a
         line.set_x1(h_ln_a, h_t1_a)
         line.set_x2(h_ln_a, h_x2_a)
         line.set_y1(h_ln_a, h_prc_a)
         line.set_y2(h_ln_a, h_prc_a)
-        line.set_color(h_ln_a, h_vis_a ? color.new(asia_col, 0) : na)
-        line.set_width(h_ln_a, h_vis_a ? sl_w : 0)
+        line.set_color(h_ln_a, vis_a ? color.new(asia_col, 0) : na)
+        line.set_width(h_ln_a, vis_a ? sl_w : 0)
         line.set_style(h_ln_a, ls(sl_sty_in))
         line.set_x1(l_ln_a, l_t1_a)
         line.set_x2(l_ln_a, l_x2_a)
         line.set_y1(l_ln_a, l_prc_a)
         line.set_y2(l_ln_a, l_prc_a)
-        line.set_color(l_ln_a, l_vis_a ? color.new(asia_col, 0) : na)
-        line.set_width(l_ln_a, l_vis_a ? sl_w : 0)
+        line.set_color(l_ln_a, vis_a ? color.new(asia_col, 0) : na)
+        line.set_width(l_ln_a, vis_a ? sl_w : 0)
         line.set_style(l_ln_a, ls(sl_sty_in))
         label hl_lbl_a = array.get(asia_hl_lbls, i)
         label ll_lbl_a = array.get(asia_ll_lbls, i)
@@ -628,13 +690,13 @@ if n_asia > 0
         label.set_style(hl_lbl_a, sl_lbl_sty_hi(sl_lbl_pos))
         label.set_text(hl_lbl_a, sl_lbl_txt("AS High", h_prc_a))
         label.set_size(hl_lbl_a, lbl_sz(sl_lbl_sz))
-        label.set_textcolor(hl_lbl_a, h_vis_a ? color.new(asia_col, 0) : na)
+        label.set_textcolor(hl_lbl_a, vis_a ? color.new(asia_col, 0) : na)
         label.set_x(ll_lbl_a, sl_lbl_x(sl_lbl_pos, l_t1_a, l_x2_a))
         label.set_y(ll_lbl_a, l_prc_a)
         label.set_style(ll_lbl_a, sl_lbl_sty_lo(sl_lbl_pos))
         label.set_text(ll_lbl_a, sl_lbl_txt("AS Low", l_prc_a))
         label.set_size(ll_lbl_a, lbl_sz(sl_lbl_sz))
-        label.set_textcolor(ll_lbl_a, l_vis_a ? color.new(asia_col, 0) : na)
+        label.set_textcolor(ll_lbl_a, vis_a ? color.new(asia_col, 0) : na)
 
 // ── LONDON SESSION ────────────────────────────────────────────────────────────
 var bool    lon_in  = false
@@ -655,6 +717,7 @@ var int     lon_hi_t    = na
 var int     lon_lo_t    = na
 var int[]   lon_hl_t    = array.new_int()
 var int[]   lon_ll_t    = array.new_int()
+var int[]   lon_day_n   = array.new_int()
 
 bool lon_now   = f_in_sess(lon_sh, lon_sm, lon_eh, lon_em)
 bool lon_start = lon_now  and not lon_in
@@ -676,9 +739,9 @@ if lon_start and tf_ok
     hl = line.new(time, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
     ll = line.new(time, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "LO High", xloc=xloc.bar_time,
-                       style=label.style_label_down, color=na, textcolor=na, size=size.small)
+                       color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "LO Low",  xloc=xloc.bar_time,
-                       style=label.style_label_up, color=na, textcolor=na, size=size.small)
+                       color=na, textcolor=na, size=size.small)
     array.push(lon_hl_lns, hl)
     array.push(lon_ll_lns, ll)
     array.push(lon_hl_tkn, na)
@@ -687,7 +750,8 @@ if lon_start and tf_ok
     array.push(lon_ll_lbls, ll_lbl)
     array.push(lon_hl_t, time)
     array.push(lon_ll_t, time)
-    f_trim_sess(lon_bxs, lon_his, lon_los, lon_lt, lon_rt, max_ol)
+    array.push(lon_day_n, tday_num)
+    f_trim_sess(lon_bxs, lon_his, lon_los, lon_lt, lon_rt, lon_day_n, max_ol)
     f_trim_hl(lon_hl_lns, lon_ll_lns, lon_hl_tkn, lon_ll_tkn, lon_hl_lbls, lon_ll_lbls, lon_hl_t, lon_ll_t, max_ol)
 
 if lon_in and not lon_start
@@ -716,11 +780,12 @@ if n_lon > 0
         box.set_bottom(b,        array.get(lon_los, i))
         box.set_left(b,          array.get(lon_lt,  i))
         box.set_right(b,         array.get(lon_rt,  i))
-        box.set_bgcolor(b,       show_lon and tf_ok ? lon_col : na)
-        box.set_border_color(b,  show_lon and tf_ok ? color.new(lon_col, 0) : na)
-        box.set_border_width(b,  show_lon and tf_ok ? bw_in : 0)
+        bool day_ok_l = tday_num - array.get(lon_day_n, i) <= prev_days
+        box.set_bgcolor(b,       show_lon and tf_ok and day_ok_l ? lon_col : na)
+        box.set_border_color(b,  show_lon and tf_ok and day_ok_l ? color.new(lon_col, 0) : na)
+        box.set_border_width(b,  show_lon and tf_ok and day_ok_l ? bw_in : 0)
         box.set_border_style(b,  ls(bsty_in))
-        box.set_text(b,          show_lon and show_box_lbl ? "London" : "")
+        box.set_text(b,          show_lon and show_box_lbl and day_ok_l ? "London" : "")
         box.set_text_color(b,    box_lbl_col)
         box.set_text_size(b,     lbl_sz(box_lbl_size))
         box.set_text_halign(b,   bx_halign(box_lbl_pos))
@@ -735,30 +800,27 @@ if n_lon > 0
         int   l_tkn_l = array.get(lon_ll_tkn, i)
         if not live
             if na(h_tkn_l) and high >= h_prc_l
-                h_tkn_l := bar_index
-                array.set(lon_hl_tkn, i, bar_index)
+                h_tkn_l := time + sl_grace * bar_ms
+                array.set(lon_hl_tkn, i, h_tkn_l)
             if na(l_tkn_l) and low <= l_prc_l
-                l_tkn_l := bar_index
-                array.set(lon_ll_tkn, i, bar_index)
-        bool h_tk_l = not na(h_tkn_l)
-        bool l_tk_l = not na(l_tkn_l)
-        int  h_x2_l = h_tk_l ? time + (h_tkn_l - bar_index + sl_grace) * bar_ms : time + extend_ms
-        int  l_x2_l = l_tk_l ? time + (l_tkn_l - bar_index + sl_grace) * bar_ms : time + extend_ms
-        bool h_vis_l = show_sl_lines and sl_show_lon and tf_ok and not live
-        bool l_vis_l = show_sl_lines and sl_show_lon and tf_ok and not live
+                l_tkn_l := time + sl_grace * bar_ms
+                array.set(lon_ll_tkn, i, l_tkn_l)
+        int  h_x2_l = not na(h_tkn_l) ? h_tkn_l : time + extend_ms
+        int  l_x2_l = not na(l_tkn_l) ? l_tkn_l : time + extend_ms
+        bool vis_l   = show_sl_lines and sl_show_lon and tf_ok and not live and day_ok_l
         line.set_x1(h_ln_l, h_t1_l)
         line.set_x2(h_ln_l, h_x2_l)
         line.set_y1(h_ln_l, h_prc_l)
         line.set_y2(h_ln_l, h_prc_l)
-        line.set_color(h_ln_l, h_vis_l ? color.new(lon_col, 0) : na)
-        line.set_width(h_ln_l, h_vis_l ? sl_w : 0)
+        line.set_color(h_ln_l, vis_l ? color.new(lon_col, 0) : na)
+        line.set_width(h_ln_l, vis_l ? sl_w : 0)
         line.set_style(h_ln_l, ls(sl_sty_in))
         line.set_x1(l_ln_l, l_t1_l)
         line.set_x2(l_ln_l, l_x2_l)
         line.set_y1(l_ln_l, l_prc_l)
         line.set_y2(l_ln_l, l_prc_l)
-        line.set_color(l_ln_l, l_vis_l ? color.new(lon_col, 0) : na)
-        line.set_width(l_ln_l, l_vis_l ? sl_w : 0)
+        line.set_color(l_ln_l, vis_l ? color.new(lon_col, 0) : na)
+        line.set_width(l_ln_l, vis_l ? sl_w : 0)
         line.set_style(l_ln_l, ls(sl_sty_in))
         label hl_lbl_l = array.get(lon_hl_lbls, i)
         label ll_lbl_l = array.get(lon_ll_lbls, i)
@@ -767,13 +829,13 @@ if n_lon > 0
         label.set_style(hl_lbl_l, sl_lbl_sty_hi(sl_lbl_pos))
         label.set_text(hl_lbl_l, sl_lbl_txt("LO High", h_prc_l))
         label.set_size(hl_lbl_l, lbl_sz(sl_lbl_sz))
-        label.set_textcolor(hl_lbl_l, h_vis_l ? color.new(lon_col, 0) : na)
+        label.set_textcolor(hl_lbl_l, vis_l ? color.new(lon_col, 0) : na)
         label.set_x(ll_lbl_l, sl_lbl_x(sl_lbl_pos, l_t1_l, l_x2_l))
         label.set_y(ll_lbl_l, l_prc_l)
         label.set_style(ll_lbl_l, sl_lbl_sty_lo(sl_lbl_pos))
         label.set_text(ll_lbl_l, sl_lbl_txt("LO Low", l_prc_l))
         label.set_size(ll_lbl_l, lbl_sz(sl_lbl_sz))
-        label.set_textcolor(ll_lbl_l, l_vis_l ? color.new(lon_col, 0) : na)
+        label.set_textcolor(ll_lbl_l, vis_l ? color.new(lon_col, 0) : na)
 
 // ── NY AM SESSION ─────────────────────────────────────────────────────────────
 var bool    nyam_in  = false
@@ -794,6 +856,7 @@ var int     nyam_hi_t    = na
 var int     nyam_lo_t    = na
 var int[]   nyam_hl_t    = array.new_int()
 var int[]   nyam_ll_t    = array.new_int()
+var int[]   nyam_day_n   = array.new_int()
 
 bool nyam_now   = f_in_sess(nyam_sh, nyam_sm, nyam_eh, nyam_em)
 bool nyam_start = nyam_now  and not nyam_in
@@ -815,9 +878,9 @@ if nyam_start and tf_ok
     hl = line.new(time, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
     ll = line.new(time, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "AM High", xloc=xloc.bar_time,
-                       style=label.style_label_down, color=na, textcolor=na, size=size.small)
+                       color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "AM Low",  xloc=xloc.bar_time,
-                       style=label.style_label_up, color=na, textcolor=na, size=size.small)
+                       color=na, textcolor=na, size=size.small)
     array.push(nyam_hl_lns, hl)
     array.push(nyam_ll_lns, ll)
     array.push(nyam_hl_tkn, na)
@@ -826,7 +889,8 @@ if nyam_start and tf_ok
     array.push(nyam_ll_lbls, ll_lbl)
     array.push(nyam_hl_t, time)
     array.push(nyam_ll_t, time)
-    f_trim_sess(nyam_bxs, nyam_his, nyam_los, nyam_lt, nyam_rt, max_ol)
+    array.push(nyam_day_n, tday_num)
+    f_trim_sess(nyam_bxs, nyam_his, nyam_los, nyam_lt, nyam_rt, nyam_day_n, max_ol)
     f_trim_hl(nyam_hl_lns, nyam_ll_lns, nyam_hl_tkn, nyam_ll_tkn, nyam_hl_lbls, nyam_ll_lbls, nyam_hl_t, nyam_ll_t, max_ol)
 
 if nyam_in and not nyam_start
@@ -855,11 +919,12 @@ if n_nyam > 0
         box.set_bottom(b,        array.get(nyam_los, i))
         box.set_left(b,          array.get(nyam_lt,  i))
         box.set_right(b,         array.get(nyam_rt,  i))
-        box.set_bgcolor(b,       show_nyam and tf_ok ? nyam_col : na)
-        box.set_border_color(b,  show_nyam and tf_ok ? color.new(nyam_col, 0) : na)
-        box.set_border_width(b,  show_nyam and tf_ok ? bw_in : 0)
+        bool day_ok_n = tday_num - array.get(nyam_day_n, i) <= prev_days
+        box.set_bgcolor(b,       show_nyam and tf_ok and day_ok_n ? nyam_col : na)
+        box.set_border_color(b,  show_nyam and tf_ok and day_ok_n ? color.new(nyam_col, 0) : na)
+        box.set_border_width(b,  show_nyam and tf_ok and day_ok_n ? bw_in : 0)
         box.set_border_style(b,  ls(bsty_in))
-        box.set_text(b,          show_nyam and show_box_lbl ? "NY AM" : "")
+        box.set_text(b,          show_nyam and show_box_lbl and day_ok_n ? "NY AM" : "")
         box.set_text_color(b,    box_lbl_col)
         box.set_text_size(b,     lbl_sz(box_lbl_size))
         box.set_text_halign(b,   bx_halign(box_lbl_pos))
@@ -874,30 +939,27 @@ if n_nyam > 0
         int   l_tkn_n = array.get(nyam_ll_tkn, i)
         if not live
             if na(h_tkn_n) and high >= h_prc_n
-                h_tkn_n := bar_index
-                array.set(nyam_hl_tkn, i, bar_index)
+                h_tkn_n := time + sl_grace * bar_ms
+                array.set(nyam_hl_tkn, i, h_tkn_n)
             if na(l_tkn_n) and low <= l_prc_n
-                l_tkn_n := bar_index
-                array.set(nyam_ll_tkn, i, bar_index)
-        bool h_tk_n = not na(h_tkn_n)
-        bool l_tk_n = not na(l_tkn_n)
-        int  h_x2_n = h_tk_n ? time + (h_tkn_n - bar_index + sl_grace) * bar_ms : time + extend_ms
-        int  l_x2_n = l_tk_n ? time + (l_tkn_n - bar_index + sl_grace) * bar_ms : time + extend_ms
-        bool h_vis_n = show_sl_lines and sl_show_nyam and tf_ok and not live
-        bool l_vis_n = show_sl_lines and sl_show_nyam and tf_ok and not live
+                l_tkn_n := time + sl_grace * bar_ms
+                array.set(nyam_ll_tkn, i, l_tkn_n)
+        int  h_x2_n = not na(h_tkn_n) ? h_tkn_n : time + extend_ms
+        int  l_x2_n = not na(l_tkn_n) ? l_tkn_n : time + extend_ms
+        bool vis_n   = show_sl_lines and sl_show_nyam and tf_ok and not live and day_ok_n
         line.set_x1(h_ln_n, h_t1_n)
         line.set_x2(h_ln_n, h_x2_n)
         line.set_y1(h_ln_n, h_prc_n)
         line.set_y2(h_ln_n, h_prc_n)
-        line.set_color(h_ln_n, h_vis_n ? color.new(nyam_col, 0) : na)
-        line.set_width(h_ln_n, h_vis_n ? sl_w : 0)
+        line.set_color(h_ln_n, vis_n ? color.new(nyam_col, 0) : na)
+        line.set_width(h_ln_n, vis_n ? sl_w : 0)
         line.set_style(h_ln_n, ls(sl_sty_in))
         line.set_x1(l_ln_n, l_t1_n)
         line.set_x2(l_ln_n, l_x2_n)
         line.set_y1(l_ln_n, l_prc_n)
         line.set_y2(l_ln_n, l_prc_n)
-        line.set_color(l_ln_n, l_vis_n ? color.new(nyam_col, 0) : na)
-        line.set_width(l_ln_n, l_vis_n ? sl_w : 0)
+        line.set_color(l_ln_n, vis_n ? color.new(nyam_col, 0) : na)
+        line.set_width(l_ln_n, vis_n ? sl_w : 0)
         line.set_style(l_ln_n, ls(sl_sty_in))
         label hl_lbl_n = array.get(nyam_hl_lbls, i)
         label ll_lbl_n = array.get(nyam_ll_lbls, i)
@@ -906,13 +968,13 @@ if n_nyam > 0
         label.set_style(hl_lbl_n, sl_lbl_sty_hi(sl_lbl_pos))
         label.set_text(hl_lbl_n, sl_lbl_txt("AM High", h_prc_n))
         label.set_size(hl_lbl_n, lbl_sz(sl_lbl_sz))
-        label.set_textcolor(hl_lbl_n, h_vis_n ? color.new(nyam_col, 0) : na)
+        label.set_textcolor(hl_lbl_n, vis_n ? color.new(nyam_col, 0) : na)
         label.set_x(ll_lbl_n, sl_lbl_x(sl_lbl_pos, l_t1_n, l_x2_n))
         label.set_y(ll_lbl_n, l_prc_n)
         label.set_style(ll_lbl_n, sl_lbl_sty_lo(sl_lbl_pos))
         label.set_text(ll_lbl_n, sl_lbl_txt("AM Low", l_prc_n))
         label.set_size(ll_lbl_n, lbl_sz(sl_lbl_sz))
-        label.set_textcolor(ll_lbl_n, l_vis_n ? color.new(nyam_col, 0) : na)
+        label.set_textcolor(ll_lbl_n, vis_n ? color.new(nyam_col, 0) : na)
 
 // ── LUNCH HOUR ────────────────────────────────────────────────────────────────
 var bool    lunch_in  = false
@@ -933,6 +995,7 @@ var int     lunch_hi_t    = na
 var int     lunch_lo_t    = na
 var int[]   lunch_hl_t    = array.new_int()
 var int[]   lunch_ll_t    = array.new_int()
+var int[]   lunch_day_n   = array.new_int()
 
 bool lunch_now   = f_in_sess(lunch_sh, lunch_sm, lunch_eh, lunch_em)
 bool lunch_start = lunch_now  and not lunch_in
@@ -954,9 +1017,9 @@ if lunch_start and tf_ok
     hl = line.new(time, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
     ll = line.new(time, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "Lunch High", xloc=xloc.bar_time,
-                       style=label.style_label_down, color=na, textcolor=na, size=size.small)
+                       color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "Lunch Low",  xloc=xloc.bar_time,
-                       style=label.style_label_up, color=na, textcolor=na, size=size.small)
+                       color=na, textcolor=na, size=size.small)
     array.push(lunch_hl_lns, hl)
     array.push(lunch_ll_lns, ll)
     array.push(lunch_hl_tkn, na)
@@ -965,7 +1028,8 @@ if lunch_start and tf_ok
     array.push(lunch_ll_lbls, ll_lbl)
     array.push(lunch_hl_t, time)
     array.push(lunch_ll_t, time)
-    f_trim_sess(lunch_bxs, lunch_his, lunch_los, lunch_lt, lunch_rt, max_ol)
+    array.push(lunch_day_n, tday_num)
+    f_trim_sess(lunch_bxs, lunch_his, lunch_los, lunch_lt, lunch_rt, lunch_day_n, max_ol)
     f_trim_hl(lunch_hl_lns, lunch_ll_lns, lunch_hl_tkn, lunch_ll_tkn, lunch_hl_lbls, lunch_ll_lbls, lunch_hl_t, lunch_ll_t, max_ol)
 
 if lunch_in and not lunch_start
@@ -994,11 +1058,12 @@ if n_lunch > 0
         box.set_bottom(b,        array.get(lunch_los, i))
         box.set_left(b,          array.get(lunch_lt,  i))
         box.set_right(b,         array.get(lunch_rt,  i))
-        box.set_bgcolor(b,       show_lunch and tf_ok ? lunch_col : na)
-        box.set_border_color(b,  show_lunch and tf_ok ? color.new(lunch_col, 0) : na)
-        box.set_border_width(b,  show_lunch and tf_ok ? bw_in : 0)
+        bool day_ok_u = tday_num - array.get(lunch_day_n, i) <= prev_days
+        box.set_bgcolor(b,       show_lunch and tf_ok and day_ok_u ? lunch_col : na)
+        box.set_border_color(b,  show_lunch and tf_ok and day_ok_u ? color.new(lunch_col, 0) : na)
+        box.set_border_width(b,  show_lunch and tf_ok and day_ok_u ? bw_in : 0)
         box.set_border_style(b,  ls(bsty_in))
-        box.set_text(b,          show_lunch and show_box_lbl ? "Lunch" : "")
+        box.set_text(b,          show_lunch and show_box_lbl and day_ok_u ? "Lunch" : "")
         box.set_text_color(b,    box_lbl_col)
         box.set_text_size(b,     lbl_sz(box_lbl_size))
         box.set_text_halign(b,   bx_halign(box_lbl_pos))
@@ -1013,30 +1078,27 @@ if n_lunch > 0
         int   l_tkn_u = array.get(lunch_ll_tkn, i)
         if not live
             if na(h_tkn_u) and high >= h_prc_u
-                h_tkn_u := bar_index
-                array.set(lunch_hl_tkn, i, bar_index)
+                h_tkn_u := time + sl_grace * bar_ms
+                array.set(lunch_hl_tkn, i, h_tkn_u)
             if na(l_tkn_u) and low <= l_prc_u
-                l_tkn_u := bar_index
-                array.set(lunch_ll_tkn, i, bar_index)
-        bool h_tk_u = not na(h_tkn_u)
-        bool l_tk_u = not na(l_tkn_u)
-        int  h_x2_u = h_tk_u ? time + (h_tkn_u - bar_index + sl_grace) * bar_ms : time + extend_ms
-        int  l_x2_u = l_tk_u ? time + (l_tkn_u - bar_index + sl_grace) * bar_ms : time + extend_ms
-        bool h_vis_u = show_sl_lines and sl_show_lunch and tf_ok and not live
-        bool l_vis_u = show_sl_lines and sl_show_lunch and tf_ok and not live
+                l_tkn_u := time + sl_grace * bar_ms
+                array.set(lunch_ll_tkn, i, l_tkn_u)
+        int  h_x2_u = not na(h_tkn_u) ? h_tkn_u : time + extend_ms
+        int  l_x2_u = not na(l_tkn_u) ? l_tkn_u : time + extend_ms
+        bool vis_u   = show_sl_lines and sl_show_lunch and tf_ok and not live and day_ok_u
         line.set_x1(h_ln_u, h_t1_u)
         line.set_x2(h_ln_u, h_x2_u)
         line.set_y1(h_ln_u, h_prc_u)
         line.set_y2(h_ln_u, h_prc_u)
-        line.set_color(h_ln_u, h_vis_u ? color.new(lunch_col, 0) : na)
-        line.set_width(h_ln_u, h_vis_u ? sl_w : 0)
+        line.set_color(h_ln_u, vis_u ? color.new(lunch_col, 0) : na)
+        line.set_width(h_ln_u, vis_u ? sl_w : 0)
         line.set_style(h_ln_u, ls(sl_sty_in))
         line.set_x1(l_ln_u, l_t1_u)
         line.set_x2(l_ln_u, l_x2_u)
         line.set_y1(l_ln_u, l_prc_u)
         line.set_y2(l_ln_u, l_prc_u)
-        line.set_color(l_ln_u, l_vis_u ? color.new(lunch_col, 0) : na)
-        line.set_width(l_ln_u, l_vis_u ? sl_w : 0)
+        line.set_color(l_ln_u, vis_u ? color.new(lunch_col, 0) : na)
+        line.set_width(l_ln_u, vis_u ? sl_w : 0)
         line.set_style(l_ln_u, ls(sl_sty_in))
         label hl_lbl_u = array.get(lunch_hl_lbls, i)
         label ll_lbl_u = array.get(lunch_ll_lbls, i)
@@ -1045,13 +1107,13 @@ if n_lunch > 0
         label.set_style(hl_lbl_u, sl_lbl_sty_hi(sl_lbl_pos))
         label.set_text(hl_lbl_u, sl_lbl_txt("Lunch High", h_prc_u))
         label.set_size(hl_lbl_u, lbl_sz(sl_lbl_sz))
-        label.set_textcolor(hl_lbl_u, h_vis_u ? color.new(lunch_col, 0) : na)
+        label.set_textcolor(hl_lbl_u, vis_u ? color.new(lunch_col, 0) : na)
         label.set_x(ll_lbl_u, sl_lbl_x(sl_lbl_pos, l_t1_u, l_x2_u))
         label.set_y(ll_lbl_u, l_prc_u)
         label.set_style(ll_lbl_u, sl_lbl_sty_lo(sl_lbl_pos))
         label.set_text(ll_lbl_u, sl_lbl_txt("Lunch Low", l_prc_u))
         label.set_size(ll_lbl_u, lbl_sz(sl_lbl_sz))
-        label.set_textcolor(ll_lbl_u, l_vis_u ? color.new(lunch_col, 0) : na)
+        label.set_textcolor(ll_lbl_u, vis_u ? color.new(lunch_col, 0) : na)
 
 // ── NY PM SESSION ─────────────────────────────────────────────────────────────
 var bool    nypm_in   = false
@@ -1072,6 +1134,7 @@ var label[] nypm_hl_lbls = array.new_label()
 var label[] nypm_ll_lbls = array.new_label()
 var int[]   nypm_hl_t    = array.new_int()
 var int[]   nypm_ll_t    = array.new_int()
+var int[]   nypm_day_n   = array.new_int()
 
 bool nypm_now   = f_in_sess(nypm_sh, nypm_sm, nypm_eh, nypm_em)
 bool nypm_start = nypm_now  and not nypm_in
@@ -1093,9 +1156,9 @@ if nypm_start and tf_ok
     hl = line.new(time, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
     ll = line.new(time, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "PM High", xloc=xloc.bar_time,
-                       style=label.style_label_down, color=na, textcolor=na, size=size.small)
+                       color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "PM Low",  xloc=xloc.bar_time,
-                       style=label.style_label_up, color=na, textcolor=na, size=size.small)
+                       color=na, textcolor=na, size=size.small)
     array.push(nypm_hl_lns, hl)
     array.push(nypm_ll_lns, ll)
     array.push(nypm_hl_tkn, na)
@@ -1104,7 +1167,8 @@ if nypm_start and tf_ok
     array.push(nypm_ll_lbls, ll_lbl)
     array.push(nypm_hl_t, time)
     array.push(nypm_ll_t, time)
-    f_trim_sess(nypm_bxs, nypm_his, nypm_los, nypm_lt, nypm_rt, max_ol)
+    array.push(nypm_day_n, tday_num)
+    f_trim_sess(nypm_bxs, nypm_his, nypm_los, nypm_lt, nypm_rt, nypm_day_n, max_ol)
     f_trim_hl(nypm_hl_lns, nypm_ll_lns, nypm_hl_tkn, nypm_ll_tkn, nypm_hl_lbls, nypm_ll_lbls, nypm_hl_t, nypm_ll_t, max_ol)
 
 if nypm_in and not nypm_start
@@ -1133,11 +1197,12 @@ if n_nypm > 0
         box.set_bottom(b,        array.get(nypm_los, i))
         box.set_left(b,          array.get(nypm_lt,  i))
         box.set_right(b,         array.get(nypm_rt,  i))
-        box.set_bgcolor(b,       show_nypm and tf_ok ? nypm_col : na)
-        box.set_border_color(b,  show_nypm and tf_ok ? color.new(nypm_col, 0) : na)
-        box.set_border_width(b,  show_nypm and tf_ok ? bw_in : 0)
+        bool day_ok_p = tday_num - array.get(nypm_day_n, i) <= prev_days
+        box.set_bgcolor(b,       show_nypm and tf_ok and day_ok_p ? nypm_col : na)
+        box.set_border_color(b,  show_nypm and tf_ok and day_ok_p ? color.new(nypm_col, 0) : na)
+        box.set_border_width(b,  show_nypm and tf_ok and day_ok_p ? bw_in : 0)
         box.set_border_style(b,  ls(bsty_in))
-        box.set_text(b,          show_nypm and show_box_lbl ? "NY PM" : "")
+        box.set_text(b,          show_nypm and show_box_lbl and day_ok_p ? "NY PM" : "")
         box.set_text_color(b,    box_lbl_col)
         box.set_text_size(b,     lbl_sz(box_lbl_size))
         box.set_text_halign(b,   bx_halign(box_lbl_pos))
@@ -1152,30 +1217,27 @@ if n_nypm > 0
         int   l_tkn_p = array.get(nypm_ll_tkn, i)
         if not live
             if na(h_tkn_p) and high >= h_prc_p
-                h_tkn_p := bar_index
-                array.set(nypm_hl_tkn, i, bar_index)
+                h_tkn_p := time + sl_grace * bar_ms
+                array.set(nypm_hl_tkn, i, h_tkn_p)
             if na(l_tkn_p) and low <= l_prc_p
-                l_tkn_p := bar_index
-                array.set(nypm_ll_tkn, i, bar_index)
-        bool h_tk_p = not na(h_tkn_p)
-        bool l_tk_p = not na(l_tkn_p)
-        int  h_x2_p = h_tk_p ? time + (h_tkn_p - bar_index + sl_grace) * bar_ms : time + extend_ms
-        int  l_x2_p = l_tk_p ? time + (l_tkn_p - bar_index + sl_grace) * bar_ms : time + extend_ms
-        bool h_vis_p = show_sl_lines and sl_show_nypm and tf_ok and not live
-        bool l_vis_p = show_sl_lines and sl_show_nypm and tf_ok and not live
+                l_tkn_p := time + sl_grace * bar_ms
+                array.set(nypm_ll_tkn, i, l_tkn_p)
+        int  h_x2_p = not na(h_tkn_p) ? h_tkn_p : time + extend_ms
+        int  l_x2_p = not na(l_tkn_p) ? l_tkn_p : time + extend_ms
+        bool vis_p   = show_sl_lines and sl_show_nypm and tf_ok and not live and day_ok_p
         line.set_x1(h_ln_p, h_t1_p)
         line.set_x2(h_ln_p, h_x2_p)
         line.set_y1(h_ln_p, h_prc_p)
         line.set_y2(h_ln_p, h_prc_p)
-        line.set_color(h_ln_p, h_vis_p ? color.new(nypm_col, 0) : na)
-        line.set_width(h_ln_p, h_vis_p ? sl_w : 0)
+        line.set_color(h_ln_p, vis_p ? color.new(nypm_col, 0) : na)
+        line.set_width(h_ln_p, vis_p ? sl_w : 0)
         line.set_style(h_ln_p, ls(sl_sty_in))
         line.set_x1(l_ln_p, l_t1_p)
         line.set_x2(l_ln_p, l_x2_p)
         line.set_y1(l_ln_p, l_prc_p)
         line.set_y2(l_ln_p, l_prc_p)
-        line.set_color(l_ln_p, l_vis_p ? color.new(nypm_col, 0) : na)
-        line.set_width(l_ln_p, l_vis_p ? sl_w : 0)
+        line.set_color(l_ln_p, vis_p ? color.new(nypm_col, 0) : na)
+        line.set_width(l_ln_p, vis_p ? sl_w : 0)
         line.set_style(l_ln_p, ls(sl_sty_in))
         label hl_lbl_p = array.get(nypm_hl_lbls, i)
         label ll_lbl_p = array.get(nypm_ll_lbls, i)
@@ -1184,13 +1246,13 @@ if n_nypm > 0
         label.set_style(hl_lbl_p, sl_lbl_sty_hi(sl_lbl_pos))
         label.set_text(hl_lbl_p, sl_lbl_txt("PM High", h_prc_p))
         label.set_size(hl_lbl_p, lbl_sz(sl_lbl_sz))
-        label.set_textcolor(hl_lbl_p, h_vis_p ? color.new(nypm_col, 0) : na)
+        label.set_textcolor(hl_lbl_p, vis_p ? color.new(nypm_col, 0) : na)
         label.set_x(ll_lbl_p, sl_lbl_x(sl_lbl_pos, l_t1_p, l_x2_p))
         label.set_y(ll_lbl_p, l_prc_p)
         label.set_style(ll_lbl_p, sl_lbl_sty_lo(sl_lbl_pos))
         label.set_text(ll_lbl_p, sl_lbl_txt("PM Low", l_prc_p))
         label.set_size(ll_lbl_p, lbl_sz(sl_lbl_sz))
-        label.set_textcolor(ll_lbl_p, l_vis_p ? color.new(nypm_col, 0) : na)
+        label.set_textcolor(ll_lbl_p, vis_p ? color.new(nypm_col, 0) : na)
 
 // ════════════════════════════════════════════════════════════════════════════
 // DAILY & WEEKLY LEVELS
@@ -1202,8 +1264,50 @@ float pdl = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.
 float pwh = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
 float pwl = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookahead_on)
 
-bool new_day_d  = ta.change(time("D")) != 0
-bool new_week_w = ta.change(time("W")) != 0
+// Track running H/L within the current day/week to record the bar where each extreme was formed.
+// On the boundary bar we save the previous period's extreme time as x1 for the new D&W line.
+var float cur_day_hi   = na
+var int   cur_day_hi_t = na
+var float cur_day_lo   = na
+var int   cur_day_lo_t = na
+var float cur_wk_hi    = na
+var int   cur_wk_hi_t  = na
+var float cur_wk_lo    = na
+var int   cur_wk_lo_t  = na
+var int   pdh_ln_x1    = na   // x1 timestamp for current PDH line
+var int   pdl_ln_x1    = na
+var int   pwh_ln_x1    = na
+var int   pwl_ln_x1    = na
+
+if new_day_d
+    pdh_ln_x1    := na(cur_day_hi_t) ? time : cur_day_hi_t
+    pdl_ln_x1    := na(cur_day_lo_t) ? time : cur_day_lo_t
+    cur_day_hi   := high
+    cur_day_hi_t := time
+    cur_day_lo   := low
+    cur_day_lo_t := time
+else
+    if na(cur_day_hi) or high >= cur_day_hi
+        cur_day_hi   := high
+        cur_day_hi_t := time
+    if na(cur_day_lo) or low <= cur_day_lo
+        cur_day_lo   := low
+        cur_day_lo_t := time
+
+if new_week_w
+    pwh_ln_x1   := na(cur_wk_hi_t) ? time : cur_wk_hi_t
+    pwl_ln_x1   := na(cur_wk_lo_t) ? time : cur_wk_lo_t
+    cur_wk_hi   := high
+    cur_wk_hi_t := time
+    cur_wk_lo   := low
+    cur_wk_lo_t := time
+else
+    if na(cur_wk_hi) or high >= cur_wk_hi
+        cur_wk_hi   := high
+        cur_wk_hi_t := time
+    if na(cur_wk_lo) or low <= cur_wk_lo
+        cur_wk_lo   := low
+        cur_wk_lo_t := time
 
 var line  pdh_ln  = na
 var line  pdl_ln  = na
@@ -1226,12 +1330,12 @@ if (new_day_d or na(pdh_ln)) and not na(pdh)
     label.delete(pdl_lbl_obj)
     pdh_tkn := na
     pdl_tkn := na
-    pdh_ln      := line.new(time, pdh, time + extend_ms, pdh, xloc=xloc.bar_time, color=na, width=1)
-    pdl_ln      := line.new(time, pdl, time + extend_ms, pdl, xloc=xloc.bar_time, color=na, width=1)
+    pdh_ln      := line.new(na(pdh_ln_x1) ? time : pdh_ln_x1, pdh, time + extend_ms, pdh, xloc=xloc.bar_time, color=na, width=1)
+    pdl_ln      := line.new(na(pdl_ln_x1) ? time : pdl_ln_x1, pdl, time + extend_ms, pdl, xloc=xloc.bar_time, color=na, width=1)
     pdh_lbl_obj := label.new(time + extend_ms, pdh, pdh_lbl, xloc=xloc.bar_time,
-                              style=label.style_label_up, color=na, textcolor=na, size=size.small)
+                              color=na, textcolor=na, size=size.small)
     pdl_lbl_obj := label.new(time + extend_ms, pdl, pdl_lbl, xloc=xloc.bar_time,
-                              style=label.style_label_down, color=na, textcolor=na, size=size.small)
+                              color=na, textcolor=na, size=size.small)
 
 // Recreate weekly lines at the start of each new week
 if (new_week_w or na(pwh_ln)) and not na(pwh)
@@ -1241,76 +1345,78 @@ if (new_week_w or na(pwh_ln)) and not na(pwh)
     label.delete(pwl_lbl_obj)
     pwh_tkn := na
     pwl_tkn := na
-    pwh_ln      := line.new(time, pwh, time + extend_ms, pwh, xloc=xloc.bar_time, color=na, width=1)
-    pwl_ln      := line.new(time, pwl, time + extend_ms, pwl, xloc=xloc.bar_time, color=na, width=1)
+    pwh_ln      := line.new(na(pwh_ln_x1) ? time : pwh_ln_x1, pwh, time + extend_ms, pwh, xloc=xloc.bar_time, color=na, width=1)
+    pwl_ln      := line.new(na(pwl_ln_x1) ? time : pwl_ln_x1, pwl, time + extend_ms, pwl, xloc=xloc.bar_time, color=na, width=1)
     pwh_lbl_obj := label.new(time + extend_ms, pwh, pwh_lbl, xloc=xloc.bar_time,
-                              style=label.style_label_down, color=na, textcolor=na, size=size.small)
+                              color=na, textcolor=na, size=size.small)
     pwl_lbl_obj := label.new(time + extend_ms, pwl, pwl_lbl, xloc=xloc.bar_time,
-                              style=label.style_label_up, color=na, textcolor=na, size=size.small)
+                              color=na, textcolor=na, size=size.small)
 
 // Update all properties every bar for toggle/color/style/extension responsiveness
-int lbl_x = time + extend_ms
-
 if not na(pdh_ln)
     if na(pdh_tkn) and high >= pdh
-        pdh_tkn := bar_index
-    bool pdh_taken = not na(pdh_tkn)
-    bool pdh_vis   = show_pdh and (not dw_hide_taken or not pdh_taken or (bar_index - pdh_tkn) <= dw_grace)
+        pdh_tkn := time + dw_grace * bar_ms
+    int pdh_x1 = na(pdh_ln_x1) ? time : pdh_ln_x1
+    int pdh_x2 = not na(pdh_tkn) ? pdh_tkn : time + extend_ms
     line.set_y1(pdh_ln, pdh)
     line.set_y2(pdh_ln, pdh)
-    line.set_x2(pdh_ln, lbl_x)
-    line.set_color(pdh_ln, pdh_vis ? pdh_col : na)
+    line.set_x2(pdh_ln, pdh_x2)
+    line.set_color(pdh_ln, show_pdh ? pdh_col : na)
     line.set_style(pdh_ln, ls(pdh_sty_in))
-    line.set_width(pdh_ln, pdh_vis ? pdh_w : 0)
-    label.set_x(pdh_lbl_obj, lbl_x)
+    line.set_width(pdh_ln, show_pdh ? pdh_w : 0)
+    label.set_x(pdh_lbl_obj, sl_lbl_x(dw_lbl_pos, pdh_x1, pdh_x2))
     label.set_y(pdh_lbl_obj, pdh)
-    label.set_text(pdh_lbl_obj, pdh_lbl)
-    label.set_textcolor(pdh_lbl_obj, pdh_vis and show_dw_labels ? pdh_col : na)
+    label.set_style(pdh_lbl_obj, sl_lbl_sty_hi(dw_lbl_pos))
+    label.set_text(pdh_lbl_obj, dw_lbl_txt(pdh_lbl, pdh))
+    label.set_textcolor(pdh_lbl_obj, show_pdh and show_dw_labels ? pdh_col : na)
 
 if not na(pdl_ln)
     if na(pdl_tkn) and low <= pdl
-        pdl_tkn := bar_index
-    bool pdl_taken = not na(pdl_tkn)
-    bool pdl_vis   = show_pdl and (not dw_hide_taken or not pdl_taken or (bar_index - pdl_tkn) <= dw_grace)
+        pdl_tkn := time + dw_grace * bar_ms
+    int pdl_x1 = na(pdl_ln_x1) ? time : pdl_ln_x1
+    int pdl_x2 = not na(pdl_tkn) ? pdl_tkn : time + extend_ms
     line.set_y1(pdl_ln, pdl)
     line.set_y2(pdl_ln, pdl)
-    line.set_x2(pdl_ln, lbl_x)
-    line.set_color(pdl_ln, pdl_vis ? pdl_col : na)
+    line.set_x2(pdl_ln, pdl_x2)
+    line.set_color(pdl_ln, show_pdl ? pdl_col : na)
     line.set_style(pdl_ln, ls(pdl_sty_in))
-    line.set_width(pdl_ln, pdl_vis ? pdl_w : 0)
-    label.set_x(pdl_lbl_obj, lbl_x)
+    line.set_width(pdl_ln, show_pdl ? pdl_w : 0)
+    label.set_x(pdl_lbl_obj, sl_lbl_x(dw_lbl_pos, pdl_x1, pdl_x2))
     label.set_y(pdl_lbl_obj, pdl)
-    label.set_text(pdl_lbl_obj, pdl_lbl)
-    label.set_textcolor(pdl_lbl_obj, pdl_vis and show_dw_labels ? pdl_col : na)
+    label.set_style(pdl_lbl_obj, sl_lbl_sty_lo(dw_lbl_pos))
+    label.set_text(pdl_lbl_obj, dw_lbl_txt(pdl_lbl, pdl))
+    label.set_textcolor(pdl_lbl_obj, show_pdl and show_dw_labels ? pdl_col : na)
 
 if not na(pwh_ln)
     if na(pwh_tkn) and high >= pwh
-        pwh_tkn := bar_index
-    bool pwh_taken = not na(pwh_tkn)
-    bool pwh_vis   = show_pwh and (not dw_hide_taken or not pwh_taken or (bar_index - pwh_tkn) <= dw_grace)
+        pwh_tkn := time + dw_grace * bar_ms
+    int pwh_x1 = na(pwh_ln_x1) ? time : pwh_ln_x1
+    int pwh_x2 = not na(pwh_tkn) ? pwh_tkn : time + extend_ms
     line.set_y1(pwh_ln, pwh)
     line.set_y2(pwh_ln, pwh)
-    line.set_x2(pwh_ln, lbl_x)
-    line.set_color(pwh_ln, pwh_vis ? pwh_col : na)
+    line.set_x2(pwh_ln, pwh_x2)
+    line.set_color(pwh_ln, show_pwh ? pwh_col : na)
     line.set_style(pwh_ln, ls(pwh_sty_in))
-    line.set_width(pwh_ln, pwh_vis ? pwh_w : 0)
-    label.set_x(pwh_lbl_obj, lbl_x)
+    line.set_width(pwh_ln, show_pwh ? pwh_w : 0)
+    label.set_x(pwh_lbl_obj, sl_lbl_x(dw_lbl_pos, pwh_x1, pwh_x2))
     label.set_y(pwh_lbl_obj, pwh)
-    label.set_text(pwh_lbl_obj, pwh_lbl)
-    label.set_textcolor(pwh_lbl_obj, pwh_vis and show_dw_labels ? pwh_col : na)
+    label.set_style(pwh_lbl_obj, sl_lbl_sty_hi(dw_lbl_pos))
+    label.set_text(pwh_lbl_obj, dw_lbl_txt(pwh_lbl, pwh))
+    label.set_textcolor(pwh_lbl_obj, show_pwh and show_dw_labels ? pwh_col : na)
 
 if not na(pwl_ln)
     if na(pwl_tkn) and low <= pwl
-        pwl_tkn := bar_index
-    bool pwl_taken = not na(pwl_tkn)
-    bool pwl_vis   = show_pwl and (not dw_hide_taken or not pwl_taken or (bar_index - pwl_tkn) <= dw_grace)
+        pwl_tkn := time + dw_grace * bar_ms
+    int pwl_x1 = na(pwl_ln_x1) ? time : pwl_ln_x1
+    int pwl_x2 = not na(pwl_tkn) ? pwl_tkn : time + extend_ms
     line.set_y1(pwl_ln, pwl)
     line.set_y2(pwl_ln, pwl)
-    line.set_x2(pwl_ln, lbl_x)
-    line.set_color(pwl_ln, pwl_vis ? pwl_col : na)
+    line.set_x2(pwl_ln, pwl_x2)
+    line.set_color(pwl_ln, show_pwl ? pwl_col : na)
     line.set_style(pwl_ln, ls(pwl_sty_in))
-    line.set_width(pwl_ln, pwl_vis ? pwl_w : 0)
-    label.set_x(pwl_lbl_obj, lbl_x)
+    line.set_width(pwl_ln, show_pwl ? pwl_w : 0)
+    label.set_x(pwl_lbl_obj, sl_lbl_x(dw_lbl_pos, pwl_x1, pwl_x2))
     label.set_y(pwl_lbl_obj, pwl)
-    label.set_text(pwl_lbl_obj, pwl_lbl)
-    label.set_textcolor(pwl_lbl_obj, pwl_vis and show_dw_labels ? pwl_col : na)
+    label.set_style(pwl_lbl_obj, sl_lbl_sty_lo(dw_lbl_pos))
+    label.set_text(pwl_lbl_obj, dw_lbl_txt(pwl_lbl, pwl))
+    label.set_textcolor(pwl_lbl_obj, show_pwl and show_dw_labels ? pwl_col : na)
