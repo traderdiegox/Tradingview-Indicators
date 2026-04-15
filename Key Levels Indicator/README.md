@@ -13,7 +13,9 @@ Plots the key intraday price levels most relevant to ICT and SMC trading — ses
 Draws a highlighted range box for up to 5 configurable sessions: Asian Range, London, NY AM, Lunch Hour, and NY PM. Each session has its own color, time range, and border style. Boxes are hidden automatically on timeframes above 1H to avoid distortion.
 
 **Key Liquidity Lines**
-After each session closes, horizontal lines extend from the session High and Low to the current bar. Labels (e.g. *AS High*, *LO Low*, *AM High*) appear at the end of each line. Lines can auto-hide after price takes the level, with a configurable grace period in candles.
+After each session closes, horizontal lines extend from the exact candle where the session High or Low was formed. Lines stay visible until price takes the level, then freeze in place — optionally extending a configurable number of candles past the taken bar before stopping. Each session (Asian, London, NY AM, Lunch, NY PM) has an individual visibility checkbox, plus a master toggle to hide all lines at once. Lines remain visible even when session boxes are hidden.
+
+Labels (*AS High*, *LO Low*, *AM High*, etc.) sit above High lines and below Low lines at all times. Label position (Left / Center / Right) controls which edge of the text aligns with the line — Left anchors the text start at x1, Right anchors the text end at the line tip, Center centers it. An optional *Show Price in Label* toggle appends the exact price to each label.
 
 **Opens**
 Marks the Midnight Open, 8:30 Open, and CME 9:30 Open with a vertical line and optional horizontal h-line extending forward. Each open has independent color, style, and width settings.

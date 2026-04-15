@@ -240,12 +240,15 @@ string box_lbl_size = input.string("small", "",           group=GKL, inline="bl"
 // INPUTS — KEY LIQUIDITY LINES
 // ════════════════════════════════════════════════════════════════════════════
 string GLL = "📐  Key Liquidity Lines"
-bool   show_sl_lines = input.bool(true,  "Session Level Lines",             group=GLL)
-bool   sl_hide_taken = input.bool(false, "Auto-hide after taken (Candles)", group=GLL, inline="sl_taken")
-int    sl_grace      = input.int(20,     "",                                group=GLL, inline="sl_taken", minval=0, maxval=500)
-bool   sl_show_price = input.bool(false, "Show Price in Label",             group=GLL)
-string sl_h_lbl_pos  = input.string("Right", "High Label Pos", options=["Left","Center","Right"], group=GLL, inline="sl_lbl_pos")
-string sl_l_lbl_pos  = input.string("Right", "Low Label Pos",  options=["Left","Center","Right"], group=GLL, inline="sl_lbl_pos")
+bool   show_sl_lines = input.bool(true,  "Session Level Lines",         group=GLL)
+bool   sl_show_asia  = input.bool(true,  "Asian",  group=GLL, inline="sl_sess")
+bool   sl_show_lon   = input.bool(true,  "London", group=GLL, inline="sl_sess")
+bool   sl_show_nyam  = input.bool(true,  "NY AM",  group=GLL, inline="sl_sess")
+bool   sl_show_lunch = input.bool(true,  "Lunch",  group=GLL, inline="sl_sess")
+bool   sl_show_nypm  = input.bool(true,  "NY PM",  group=GLL, inline="sl_sess")
+int    sl_grace      = input.int(0,  "Extend after taken (Candles)",    group=GLL, minval=0, maxval=500)
+bool   sl_show_price = input.bool(false, "Show Price in Label", group=GLL)
+string sl_lbl_pos    = input.string("Right", "Label Position",  options=["Left","Center","Right"], group=GLL)
 string sl_sty_in     = input.string("Solid",  "Line Style",  options=["Solid","Dashed","Dotted"], group=GLL)
 int    sl_w          = input.int(1, "Thickness", minval=1, maxval=4, group=GLL)
 string sl_lbl_sz     = input.string("small", "Label Size",   options=["tiny","small","normal","large"], group=GLL)
@@ -271,20 +274,29 @@ lbl_sz(s) =>
         "normal" => size.normal
         =>          size.small
 
-sl_h_style(pos) =>
+// x position along the extension line: Left=near session box, Center=midpoint, Right=line tip
+sl_lbl_x(pos, x1, x2) =>
     switch pos
-        "Left"   => label.style_label_upper_left
-        "Center" => label.style_label_upper_center
-        =>          label.style_label_upper_right
-
-sl_l_style(pos) =>
-    switch pos
-        "Left"   => label.style_label_lower_left
-        "Center" => label.style_label_lower_center
-        =>          label.style_label_lower_right
+        "Left"   => x1
+        "Center" => int((x1 + x2) / 2)
+        =>          x2
 
 sl_lbl_txt(nm, prc) =>
     sl_show_price ? nm + " (" + str.tostring(prc, format.mintick) + ")" : nm
+
+// Label style for HIGH lines: anchor sits at the correct horizontal edge of the text box
+sl_lbl_sty_hi(pos) =>
+    switch pos
+        "Left"   => label.style_label_lower_left   // anchor = lower-left corner → text above, starts at x1
+        "Center" => label.style_label_down          // anchor = center-top → text above, centered
+        =>          label.style_label_lower_right   // anchor = lower-right corner → text above, ends at x2
+
+// Label style for LOW lines: anchor sits at the correct horizontal edge of the text box
+sl_lbl_sty_lo(pos) =>
+    switch pos
+        "Left"   => label.style_label_upper_left   // anchor = upper-left corner → text below, starts at x1
+        "Center" => label.style_label_up            // anchor = center-bottom → text below, centered
+        =>          label.style_label_upper_right   // anchor = upper-right corner → text below, ends at x2
 
 bx_halign(pos) =>
     switch pos
@@ -342,7 +354,8 @@ f_trim_sess(bxs, his, los, lts, rts, max_n) =>
         array.shift(rts)
 
 // Trim session H/L extension line + label arrays (parallel to session box arrays)
-f_trim_hl(hll, lll, hlt, llt, hla, lla, max_n) =>
+// htt/ltt = arrays storing the bar-time when session high/low was formed
+f_trim_hl(hll, lll, hlt, llt, hla, lla, htt, ltt, max_n) =>
     while array.size(hll) > max_n
         line.delete(array.shift(hll))
         line.delete(array.shift(lll))
@@ -350,6 +363,8 @@ f_trim_hl(hll, lll, hlt, llt, hla, lla, max_n) =>
         array.shift(llt)
         label.delete(array.shift(hla))
         label.delete(array.shift(lla))
+        array.shift(htt)
+        array.shift(ltt)
 
 // ════════════════════════════════════════════════════════════════════════════
 // OPEN LINE TRIGGERS
@@ -483,29 +498,35 @@ if n_930_h > 0
 // ════════════════════════════════════════════════════════════════════════════
 
 // ── ASIAN RANGE ──────────────────────────────────────────────────────────────
-var bool    asia_in  = false
-var float   asia_hi  = na
-var float   asia_lo  = na
-var box[]   asia_bxs = array.new_box()
-var float[] asia_his = array.new_float()
-var float[] asia_los = array.new_float()
-var int[]   asia_lt  = array.new_int()
-var int[]   asia_rt  = array.new_int()
+var bool    asia_in   = false
+var float   asia_hi   = na
+var float   asia_lo   = na
+var int     asia_hi_t = na   // time of bar where session high was formed
+var int     asia_lo_t = na   // time of bar where session low was formed
+var box[]   asia_bxs  = array.new_box()
+var float[] asia_his  = array.new_float()
+var float[] asia_los  = array.new_float()
+var int[]   asia_lt   = array.new_int()
+var int[]   asia_rt   = array.new_int()
 var line[]  asia_hl_lns  = array.new_line()
 var line[]  asia_ll_lns  = array.new_line()
 var int[]   asia_hl_tkn  = array.new_int()
 var int[]   asia_ll_tkn  = array.new_int()
 var label[] asia_hl_lbls = array.new_label()
 var label[] asia_ll_lbls = array.new_label()
+var int[]   asia_hl_t    = array.new_int()   // stored high-bar times per session
+var int[]   asia_ll_t    = array.new_int()   // stored low-bar times per session
 
 bool asia_now   = f_in_sess(asia_sh, asia_sm, asia_eh, asia_em)
 bool asia_start = asia_now  and not asia_in
 bool asia_end   = not asia_now and asia_in
 
 if asia_start and tf_ok
-    asia_in := true
-    asia_hi := high
-    asia_lo := low
+    asia_in   := true
+    asia_hi   := high
+    asia_lo   := low
+    asia_hi_t := time
+    asia_lo_t := time
     b = box.new(time, high, time + bar_ms, low, xloc=xloc.bar_time,
                 bgcolor=na, border_color=na, border_width=0)
     array.push(asia_bxs, b)
@@ -513,24 +534,30 @@ if asia_start and tf_ok
     array.push(asia_los, low)
     array.push(asia_lt,  time)
     array.push(asia_rt,  time + bar_ms)
-    hl = line.new(time + bar_ms, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
-    ll = line.new(time + bar_ms, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
+    hl = line.new(time, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
+    ll = line.new(time, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "AS High", xloc=xloc.bar_time,
-                       style=sl_h_style(sl_h_lbl_pos), color=na, textcolor=na, size=size.small)
+                       style=label.style_label_down, color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "AS Low",  xloc=xloc.bar_time,
-                       style=sl_l_style(sl_l_lbl_pos), color=na, textcolor=na, size=size.small)
+                       style=label.style_label_up, color=na, textcolor=na, size=size.small)
     array.push(asia_hl_lns, hl)
     array.push(asia_ll_lns, ll)
     array.push(asia_hl_tkn, na)
     array.push(asia_ll_tkn, na)
     array.push(asia_hl_lbls, hl_lbl)
     array.push(asia_ll_lbls, ll_lbl)
+    array.push(asia_hl_t, time)
+    array.push(asia_ll_t, time)
     f_trim_sess(asia_bxs, asia_his, asia_los, asia_lt, asia_rt, max_ol)
-    f_trim_hl(asia_hl_lns, asia_ll_lns, asia_hl_tkn, asia_ll_tkn, asia_hl_lbls, asia_ll_lbls, max_ol)
+    f_trim_hl(asia_hl_lns, asia_ll_lns, asia_hl_tkn, asia_ll_tkn, asia_hl_lbls, asia_ll_lbls, asia_hl_t, asia_ll_t, max_ol)
 
 if asia_in and not asia_start
-    asia_hi := math.max(asia_hi, high)
-    asia_lo := math.min(asia_lo, low)
+    if high >= asia_hi
+        asia_hi   := high
+        asia_hi_t := time
+    if low <= asia_lo
+        asia_lo   := low
+        asia_lo_t := time
 
 if asia_end
     asia_in := false
@@ -541,9 +568,11 @@ if n_asia > 0
         b    = array.get(asia_bxs, i)
         bool live = i == n_asia - 1 and asia_in
         if live
-            array.set(asia_his, i, asia_hi)
-            array.set(asia_los, i, asia_lo)
-            array.set(asia_rt,  i, time + bar_ms)
+            array.set(asia_his,  i, asia_hi)
+            array.set(asia_los,  i, asia_lo)
+            array.set(asia_rt,   i, time + bar_ms)
+            array.set(asia_hl_t, i, asia_hi_t)
+            array.set(asia_ll_t, i, asia_lo_t)
         box.set_top(b,           array.get(asia_his, i))
         box.set_bottom(b,        array.get(asia_los, i))
         box.set_left(b,          array.get(asia_lt,  i))
@@ -557,8 +586,10 @@ if n_asia > 0
         box.set_text_size(b,     lbl_sz(box_lbl_size))
         box.set_text_halign(b,   bx_halign(box_lbl_pos))
         box.set_text_valign(b,   bx_valign(box_lbl_pos))
-        float h_prc_a = array.get(asia_his, i)
-        float l_prc_a = array.get(asia_los, i)
+        float h_prc_a = array.get(asia_his,  i)
+        float l_prc_a = array.get(asia_los,  i)
+        int   h_t1_a  = array.get(asia_hl_t, i)
+        int   l_t1_a  = array.get(asia_ll_t, i)
         line  h_ln_a  = array.get(asia_hl_lns, i)
         line  l_ln_a  = array.get(asia_ll_lns, i)
         int   h_tkn_a = array.get(asia_hl_tkn, i)
@@ -570,23 +601,21 @@ if n_asia > 0
             if na(l_tkn_a) and low <= l_prc_a
                 l_tkn_a := bar_index
                 array.set(asia_ll_tkn, i, bar_index)
-        bool h_tk_a  = not na(h_tkn_a)
-        bool l_tk_a  = not na(l_tkn_a)
-        int  h_si_a  = h_tk_a ? bar_index - h_tkn_a : 0
-        int  l_si_a  = l_tk_a ? bar_index - l_tkn_a : 0
-        bool h_vis_a = show_sl_lines and show_asia and tf_ok and not live and
-                       (not sl_hide_taken or not h_tk_a or h_si_a <= sl_grace)
-        bool l_vis_a = show_sl_lines and show_asia and tf_ok and not live and
-                       (not sl_hide_taken or not l_tk_a or l_si_a <= sl_grace)
-        line.set_x1(h_ln_a, array.get(asia_rt, i))
-        line.set_x2(h_ln_a, time + extend_ms)
+        bool h_tk_a = not na(h_tkn_a)
+        bool l_tk_a = not na(l_tkn_a)
+        int  h_x2_a = h_tk_a ? time + (h_tkn_a - bar_index + sl_grace) * bar_ms : time + extend_ms
+        int  l_x2_a = l_tk_a ? time + (l_tkn_a - bar_index + sl_grace) * bar_ms : time + extend_ms
+        bool h_vis_a = show_sl_lines and sl_show_asia and tf_ok and not live
+        bool l_vis_a = show_sl_lines and sl_show_asia and tf_ok and not live
+        line.set_x1(h_ln_a, h_t1_a)
+        line.set_x2(h_ln_a, h_x2_a)
         line.set_y1(h_ln_a, h_prc_a)
         line.set_y2(h_ln_a, h_prc_a)
         line.set_color(h_ln_a, h_vis_a ? color.new(asia_col, 0) : na)
         line.set_width(h_ln_a, h_vis_a ? sl_w : 0)
         line.set_style(h_ln_a, ls(sl_sty_in))
-        line.set_x1(l_ln_a, array.get(asia_rt, i))
-        line.set_x2(l_ln_a, time + extend_ms)
+        line.set_x1(l_ln_a, l_t1_a)
+        line.set_x2(l_ln_a, l_x2_a)
         line.set_y1(l_ln_a, l_prc_a)
         line.set_y2(l_ln_a, l_prc_a)
         line.set_color(l_ln_a, l_vis_a ? color.new(asia_col, 0) : na)
@@ -594,15 +623,15 @@ if n_asia > 0
         line.set_style(l_ln_a, ls(sl_sty_in))
         label hl_lbl_a = array.get(asia_hl_lbls, i)
         label ll_lbl_a = array.get(asia_ll_lbls, i)
-        label.set_x(hl_lbl_a, time + extend_ms)
+        label.set_x(hl_lbl_a, sl_lbl_x(sl_lbl_pos, h_t1_a, h_x2_a))
         label.set_y(hl_lbl_a, h_prc_a)
-        label.set_style(hl_lbl_a, sl_h_style(sl_h_lbl_pos))
+        label.set_style(hl_lbl_a, sl_lbl_sty_hi(sl_lbl_pos))
         label.set_text(hl_lbl_a, sl_lbl_txt("AS High", h_prc_a))
         label.set_size(hl_lbl_a, lbl_sz(sl_lbl_sz))
         label.set_textcolor(hl_lbl_a, h_vis_a ? color.new(asia_col, 0) : na)
-        label.set_x(ll_lbl_a, time + extend_ms)
+        label.set_x(ll_lbl_a, sl_lbl_x(sl_lbl_pos, l_t1_a, l_x2_a))
         label.set_y(ll_lbl_a, l_prc_a)
-        label.set_style(ll_lbl_a, sl_l_style(sl_l_lbl_pos))
+        label.set_style(ll_lbl_a, sl_lbl_sty_lo(sl_lbl_pos))
         label.set_text(ll_lbl_a, sl_lbl_txt("AS Low", l_prc_a))
         label.set_size(ll_lbl_a, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_a, l_vis_a ? color.new(asia_col, 0) : na)
@@ -622,15 +651,21 @@ var int[]   lon_hl_tkn  = array.new_int()
 var int[]   lon_ll_tkn  = array.new_int()
 var label[] lon_hl_lbls = array.new_label()
 var label[] lon_ll_lbls = array.new_label()
+var int     lon_hi_t    = na
+var int     lon_lo_t    = na
+var int[]   lon_hl_t    = array.new_int()
+var int[]   lon_ll_t    = array.new_int()
 
 bool lon_now   = f_in_sess(lon_sh, lon_sm, lon_eh, lon_em)
 bool lon_start = lon_now  and not lon_in
 bool lon_end   = not lon_now and lon_in
 
 if lon_start and tf_ok
-    lon_in := true
-    lon_hi := high
-    lon_lo := low
+    lon_in   := true
+    lon_hi   := high
+    lon_lo   := low
+    lon_hi_t := time
+    lon_lo_t := time
     b = box.new(time, high, time + bar_ms, low, xloc=xloc.bar_time,
                 bgcolor=na, border_color=na, border_width=0)
     array.push(lon_bxs, b)
@@ -638,24 +673,30 @@ if lon_start and tf_ok
     array.push(lon_los, low)
     array.push(lon_lt,  time)
     array.push(lon_rt,  time + bar_ms)
-    hl = line.new(time + bar_ms, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
-    ll = line.new(time + bar_ms, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
+    hl = line.new(time, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
+    ll = line.new(time, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "LO High", xloc=xloc.bar_time,
-                       style=sl_h_style(sl_h_lbl_pos), color=na, textcolor=na, size=size.small)
+                       style=label.style_label_down, color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "LO Low",  xloc=xloc.bar_time,
-                       style=sl_l_style(sl_l_lbl_pos), color=na, textcolor=na, size=size.small)
+                       style=label.style_label_up, color=na, textcolor=na, size=size.small)
     array.push(lon_hl_lns, hl)
     array.push(lon_ll_lns, ll)
     array.push(lon_hl_tkn, na)
     array.push(lon_ll_tkn, na)
     array.push(lon_hl_lbls, hl_lbl)
     array.push(lon_ll_lbls, ll_lbl)
+    array.push(lon_hl_t, time)
+    array.push(lon_ll_t, time)
     f_trim_sess(lon_bxs, lon_his, lon_los, lon_lt, lon_rt, max_ol)
-    f_trim_hl(lon_hl_lns, lon_ll_lns, lon_hl_tkn, lon_ll_tkn, lon_hl_lbls, lon_ll_lbls, max_ol)
+    f_trim_hl(lon_hl_lns, lon_ll_lns, lon_hl_tkn, lon_ll_tkn, lon_hl_lbls, lon_ll_lbls, lon_hl_t, lon_ll_t, max_ol)
 
 if lon_in and not lon_start
-    lon_hi := math.max(lon_hi, high)
-    lon_lo := math.min(lon_lo, low)
+    if high >= lon_hi
+        lon_hi   := high
+        lon_hi_t := time
+    if low <= lon_lo
+        lon_lo   := low
+        lon_lo_t := time
 
 if lon_end
     lon_in := false
@@ -666,9 +707,11 @@ if n_lon > 0
         b    = array.get(lon_bxs, i)
         bool live = i == n_lon - 1 and lon_in
         if live
-            array.set(lon_his, i, lon_hi)
-            array.set(lon_los, i, lon_lo)
-            array.set(lon_rt,  i, time + bar_ms)
+            array.set(lon_his,  i, lon_hi)
+            array.set(lon_los,  i, lon_lo)
+            array.set(lon_rt,   i, time + bar_ms)
+            array.set(lon_hl_t, i, lon_hi_t)
+            array.set(lon_ll_t, i, lon_lo_t)
         box.set_top(b,           array.get(lon_his, i))
         box.set_bottom(b,        array.get(lon_los, i))
         box.set_left(b,          array.get(lon_lt,  i))
@@ -682,8 +725,10 @@ if n_lon > 0
         box.set_text_size(b,     lbl_sz(box_lbl_size))
         box.set_text_halign(b,   bx_halign(box_lbl_pos))
         box.set_text_valign(b,   bx_valign(box_lbl_pos))
-        float h_prc_l = array.get(lon_his, i)
-        float l_prc_l = array.get(lon_los, i)
+        float h_prc_l = array.get(lon_his,  i)
+        float l_prc_l = array.get(lon_los,  i)
+        int   h_t1_l  = array.get(lon_hl_t, i)
+        int   l_t1_l  = array.get(lon_ll_t, i)
         line  h_ln_l  = array.get(lon_hl_lns, i)
         line  l_ln_l  = array.get(lon_ll_lns, i)
         int   h_tkn_l = array.get(lon_hl_tkn, i)
@@ -695,23 +740,21 @@ if n_lon > 0
             if na(l_tkn_l) and low <= l_prc_l
                 l_tkn_l := bar_index
                 array.set(lon_ll_tkn, i, bar_index)
-        bool h_tk_l  = not na(h_tkn_l)
-        bool l_tk_l  = not na(l_tkn_l)
-        int  h_si_l  = h_tk_l ? bar_index - h_tkn_l : 0
-        int  l_si_l  = l_tk_l ? bar_index - l_tkn_l : 0
-        bool h_vis_l = show_sl_lines and show_lon and tf_ok and not live and
-                       (not sl_hide_taken or not h_tk_l or h_si_l <= sl_grace)
-        bool l_vis_l = show_sl_lines and show_lon and tf_ok and not live and
-                       (not sl_hide_taken or not l_tk_l or l_si_l <= sl_grace)
-        line.set_x1(h_ln_l, array.get(lon_rt, i))
-        line.set_x2(h_ln_l, time + extend_ms)
+        bool h_tk_l = not na(h_tkn_l)
+        bool l_tk_l = not na(l_tkn_l)
+        int  h_x2_l = h_tk_l ? time + (h_tkn_l - bar_index + sl_grace) * bar_ms : time + extend_ms
+        int  l_x2_l = l_tk_l ? time + (l_tkn_l - bar_index + sl_grace) * bar_ms : time + extend_ms
+        bool h_vis_l = show_sl_lines and sl_show_lon and tf_ok and not live
+        bool l_vis_l = show_sl_lines and sl_show_lon and tf_ok and not live
+        line.set_x1(h_ln_l, h_t1_l)
+        line.set_x2(h_ln_l, h_x2_l)
         line.set_y1(h_ln_l, h_prc_l)
         line.set_y2(h_ln_l, h_prc_l)
         line.set_color(h_ln_l, h_vis_l ? color.new(lon_col, 0) : na)
         line.set_width(h_ln_l, h_vis_l ? sl_w : 0)
         line.set_style(h_ln_l, ls(sl_sty_in))
-        line.set_x1(l_ln_l, array.get(lon_rt, i))
-        line.set_x2(l_ln_l, time + extend_ms)
+        line.set_x1(l_ln_l, l_t1_l)
+        line.set_x2(l_ln_l, l_x2_l)
         line.set_y1(l_ln_l, l_prc_l)
         line.set_y2(l_ln_l, l_prc_l)
         line.set_color(l_ln_l, l_vis_l ? color.new(lon_col, 0) : na)
@@ -719,15 +762,15 @@ if n_lon > 0
         line.set_style(l_ln_l, ls(sl_sty_in))
         label hl_lbl_l = array.get(lon_hl_lbls, i)
         label ll_lbl_l = array.get(lon_ll_lbls, i)
-        label.set_x(hl_lbl_l, time + extend_ms)
+        label.set_x(hl_lbl_l, sl_lbl_x(sl_lbl_pos, h_t1_l, h_x2_l))
         label.set_y(hl_lbl_l, h_prc_l)
-        label.set_style(hl_lbl_l, sl_h_style(sl_h_lbl_pos))
+        label.set_style(hl_lbl_l, sl_lbl_sty_hi(sl_lbl_pos))
         label.set_text(hl_lbl_l, sl_lbl_txt("LO High", h_prc_l))
         label.set_size(hl_lbl_l, lbl_sz(sl_lbl_sz))
         label.set_textcolor(hl_lbl_l, h_vis_l ? color.new(lon_col, 0) : na)
-        label.set_x(ll_lbl_l, time + extend_ms)
+        label.set_x(ll_lbl_l, sl_lbl_x(sl_lbl_pos, l_t1_l, l_x2_l))
         label.set_y(ll_lbl_l, l_prc_l)
-        label.set_style(ll_lbl_l, sl_l_style(sl_l_lbl_pos))
+        label.set_style(ll_lbl_l, sl_lbl_sty_lo(sl_lbl_pos))
         label.set_text(ll_lbl_l, sl_lbl_txt("LO Low", l_prc_l))
         label.set_size(ll_lbl_l, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_l, l_vis_l ? color.new(lon_col, 0) : na)
@@ -747,15 +790,21 @@ var int[]   nyam_hl_tkn  = array.new_int()
 var int[]   nyam_ll_tkn  = array.new_int()
 var label[] nyam_hl_lbls = array.new_label()
 var label[] nyam_ll_lbls = array.new_label()
+var int     nyam_hi_t    = na
+var int     nyam_lo_t    = na
+var int[]   nyam_hl_t    = array.new_int()
+var int[]   nyam_ll_t    = array.new_int()
 
 bool nyam_now   = f_in_sess(nyam_sh, nyam_sm, nyam_eh, nyam_em)
 bool nyam_start = nyam_now  and not nyam_in
 bool nyam_end   = not nyam_now and nyam_in
 
 if nyam_start and tf_ok
-    nyam_in := true
-    nyam_hi := high
-    nyam_lo := low
+    nyam_in   := true
+    nyam_hi   := high
+    nyam_lo   := low
+    nyam_hi_t := time
+    nyam_lo_t := time
     b = box.new(time, high, time + bar_ms, low, xloc=xloc.bar_time,
                 bgcolor=na, border_color=na, border_width=0)
     array.push(nyam_bxs, b)
@@ -763,24 +812,30 @@ if nyam_start and tf_ok
     array.push(nyam_los, low)
     array.push(nyam_lt,  time)
     array.push(nyam_rt,  time + bar_ms)
-    hl = line.new(time + bar_ms, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
-    ll = line.new(time + bar_ms, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
+    hl = line.new(time, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
+    ll = line.new(time, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "AM High", xloc=xloc.bar_time,
-                       style=sl_h_style(sl_h_lbl_pos), color=na, textcolor=na, size=size.small)
+                       style=label.style_label_down, color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "AM Low",  xloc=xloc.bar_time,
-                       style=sl_l_style(sl_l_lbl_pos), color=na, textcolor=na, size=size.small)
+                       style=label.style_label_up, color=na, textcolor=na, size=size.small)
     array.push(nyam_hl_lns, hl)
     array.push(nyam_ll_lns, ll)
     array.push(nyam_hl_tkn, na)
     array.push(nyam_ll_tkn, na)
     array.push(nyam_hl_lbls, hl_lbl)
     array.push(nyam_ll_lbls, ll_lbl)
+    array.push(nyam_hl_t, time)
+    array.push(nyam_ll_t, time)
     f_trim_sess(nyam_bxs, nyam_his, nyam_los, nyam_lt, nyam_rt, max_ol)
-    f_trim_hl(nyam_hl_lns, nyam_ll_lns, nyam_hl_tkn, nyam_ll_tkn, nyam_hl_lbls, nyam_ll_lbls, max_ol)
+    f_trim_hl(nyam_hl_lns, nyam_ll_lns, nyam_hl_tkn, nyam_ll_tkn, nyam_hl_lbls, nyam_ll_lbls, nyam_hl_t, nyam_ll_t, max_ol)
 
 if nyam_in and not nyam_start
-    nyam_hi := math.max(nyam_hi, high)
-    nyam_lo := math.min(nyam_lo, low)
+    if high >= nyam_hi
+        nyam_hi   := high
+        nyam_hi_t := time
+    if low <= nyam_lo
+        nyam_lo   := low
+        nyam_lo_t := time
 
 if nyam_end
     nyam_in := false
@@ -791,9 +846,11 @@ if n_nyam > 0
         b    = array.get(nyam_bxs, i)
         bool live = i == n_nyam - 1 and nyam_in
         if live
-            array.set(nyam_his, i, nyam_hi)
-            array.set(nyam_los, i, nyam_lo)
-            array.set(nyam_rt,  i, time + bar_ms)
+            array.set(nyam_his,  i, nyam_hi)
+            array.set(nyam_los,  i, nyam_lo)
+            array.set(nyam_rt,   i, time + bar_ms)
+            array.set(nyam_hl_t, i, nyam_hi_t)
+            array.set(nyam_ll_t, i, nyam_lo_t)
         box.set_top(b,           array.get(nyam_his, i))
         box.set_bottom(b,        array.get(nyam_los, i))
         box.set_left(b,          array.get(nyam_lt,  i))
@@ -807,8 +864,10 @@ if n_nyam > 0
         box.set_text_size(b,     lbl_sz(box_lbl_size))
         box.set_text_halign(b,   bx_halign(box_lbl_pos))
         box.set_text_valign(b,   bx_valign(box_lbl_pos))
-        float h_prc_n = array.get(nyam_his, i)
-        float l_prc_n = array.get(nyam_los, i)
+        float h_prc_n = array.get(nyam_his,  i)
+        float l_prc_n = array.get(nyam_los,  i)
+        int   h_t1_n  = array.get(nyam_hl_t, i)
+        int   l_t1_n  = array.get(nyam_ll_t, i)
         line  h_ln_n  = array.get(nyam_hl_lns, i)
         line  l_ln_n  = array.get(nyam_ll_lns, i)
         int   h_tkn_n = array.get(nyam_hl_tkn, i)
@@ -820,23 +879,21 @@ if n_nyam > 0
             if na(l_tkn_n) and low <= l_prc_n
                 l_tkn_n := bar_index
                 array.set(nyam_ll_tkn, i, bar_index)
-        bool h_tk_n  = not na(h_tkn_n)
-        bool l_tk_n  = not na(l_tkn_n)
-        int  h_si_n  = h_tk_n ? bar_index - h_tkn_n : 0
-        int  l_si_n  = l_tk_n ? bar_index - l_tkn_n : 0
-        bool h_vis_n = show_sl_lines and show_nyam and tf_ok and not live and
-                       (not sl_hide_taken or not h_tk_n or h_si_n <= sl_grace)
-        bool l_vis_n = show_sl_lines and show_nyam and tf_ok and not live and
-                       (not sl_hide_taken or not l_tk_n or l_si_n <= sl_grace)
-        line.set_x1(h_ln_n, array.get(nyam_rt, i))
-        line.set_x2(h_ln_n, time + extend_ms)
+        bool h_tk_n = not na(h_tkn_n)
+        bool l_tk_n = not na(l_tkn_n)
+        int  h_x2_n = h_tk_n ? time + (h_tkn_n - bar_index + sl_grace) * bar_ms : time + extend_ms
+        int  l_x2_n = l_tk_n ? time + (l_tkn_n - bar_index + sl_grace) * bar_ms : time + extend_ms
+        bool h_vis_n = show_sl_lines and sl_show_nyam and tf_ok and not live
+        bool l_vis_n = show_sl_lines and sl_show_nyam and tf_ok and not live
+        line.set_x1(h_ln_n, h_t1_n)
+        line.set_x2(h_ln_n, h_x2_n)
         line.set_y1(h_ln_n, h_prc_n)
         line.set_y2(h_ln_n, h_prc_n)
         line.set_color(h_ln_n, h_vis_n ? color.new(nyam_col, 0) : na)
         line.set_width(h_ln_n, h_vis_n ? sl_w : 0)
         line.set_style(h_ln_n, ls(sl_sty_in))
-        line.set_x1(l_ln_n, array.get(nyam_rt, i))
-        line.set_x2(l_ln_n, time + extend_ms)
+        line.set_x1(l_ln_n, l_t1_n)
+        line.set_x2(l_ln_n, l_x2_n)
         line.set_y1(l_ln_n, l_prc_n)
         line.set_y2(l_ln_n, l_prc_n)
         line.set_color(l_ln_n, l_vis_n ? color.new(nyam_col, 0) : na)
@@ -844,15 +901,15 @@ if n_nyam > 0
         line.set_style(l_ln_n, ls(sl_sty_in))
         label hl_lbl_n = array.get(nyam_hl_lbls, i)
         label ll_lbl_n = array.get(nyam_ll_lbls, i)
-        label.set_x(hl_lbl_n, time + extend_ms)
+        label.set_x(hl_lbl_n, sl_lbl_x(sl_lbl_pos, h_t1_n, h_x2_n))
         label.set_y(hl_lbl_n, h_prc_n)
-        label.set_style(hl_lbl_n, sl_h_style(sl_h_lbl_pos))
+        label.set_style(hl_lbl_n, sl_lbl_sty_hi(sl_lbl_pos))
         label.set_text(hl_lbl_n, sl_lbl_txt("AM High", h_prc_n))
         label.set_size(hl_lbl_n, lbl_sz(sl_lbl_sz))
         label.set_textcolor(hl_lbl_n, h_vis_n ? color.new(nyam_col, 0) : na)
-        label.set_x(ll_lbl_n, time + extend_ms)
+        label.set_x(ll_lbl_n, sl_lbl_x(sl_lbl_pos, l_t1_n, l_x2_n))
         label.set_y(ll_lbl_n, l_prc_n)
-        label.set_style(ll_lbl_n, sl_l_style(sl_l_lbl_pos))
+        label.set_style(ll_lbl_n, sl_lbl_sty_lo(sl_lbl_pos))
         label.set_text(ll_lbl_n, sl_lbl_txt("AM Low", l_prc_n))
         label.set_size(ll_lbl_n, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_n, l_vis_n ? color.new(nyam_col, 0) : na)
@@ -872,15 +929,21 @@ var int[]   lunch_hl_tkn  = array.new_int()
 var int[]   lunch_ll_tkn  = array.new_int()
 var label[] lunch_hl_lbls = array.new_label()
 var label[] lunch_ll_lbls = array.new_label()
+var int     lunch_hi_t    = na
+var int     lunch_lo_t    = na
+var int[]   lunch_hl_t    = array.new_int()
+var int[]   lunch_ll_t    = array.new_int()
 
 bool lunch_now   = f_in_sess(lunch_sh, lunch_sm, lunch_eh, lunch_em)
 bool lunch_start = lunch_now  and not lunch_in
 bool lunch_end   = not lunch_now and lunch_in
 
 if lunch_start and tf_ok
-    lunch_in := true
-    lunch_hi := high
-    lunch_lo := low
+    lunch_in   := true
+    lunch_hi   := high
+    lunch_lo   := low
+    lunch_hi_t := time
+    lunch_lo_t := time
     b = box.new(time, high, time + bar_ms, low, xloc=xloc.bar_time,
                 bgcolor=na, border_color=na, border_width=0)
     array.push(lunch_bxs, b)
@@ -888,24 +951,30 @@ if lunch_start and tf_ok
     array.push(lunch_los, low)
     array.push(lunch_lt,  time)
     array.push(lunch_rt,  time + bar_ms)
-    hl = line.new(time + bar_ms, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
-    ll = line.new(time + bar_ms, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
+    hl = line.new(time, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
+    ll = line.new(time, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "Lunch High", xloc=xloc.bar_time,
-                       style=sl_h_style(sl_h_lbl_pos), color=na, textcolor=na, size=size.small)
+                       style=label.style_label_down, color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "Lunch Low",  xloc=xloc.bar_time,
-                       style=sl_l_style(sl_l_lbl_pos), color=na, textcolor=na, size=size.small)
+                       style=label.style_label_up, color=na, textcolor=na, size=size.small)
     array.push(lunch_hl_lns, hl)
     array.push(lunch_ll_lns, ll)
     array.push(lunch_hl_tkn, na)
     array.push(lunch_ll_tkn, na)
     array.push(lunch_hl_lbls, hl_lbl)
     array.push(lunch_ll_lbls, ll_lbl)
+    array.push(lunch_hl_t, time)
+    array.push(lunch_ll_t, time)
     f_trim_sess(lunch_bxs, lunch_his, lunch_los, lunch_lt, lunch_rt, max_ol)
-    f_trim_hl(lunch_hl_lns, lunch_ll_lns, lunch_hl_tkn, lunch_ll_tkn, lunch_hl_lbls, lunch_ll_lbls, max_ol)
+    f_trim_hl(lunch_hl_lns, lunch_ll_lns, lunch_hl_tkn, lunch_ll_tkn, lunch_hl_lbls, lunch_ll_lbls, lunch_hl_t, lunch_ll_t, max_ol)
 
 if lunch_in and not lunch_start
-    lunch_hi := math.max(lunch_hi, high)
-    lunch_lo := math.min(lunch_lo, low)
+    if high >= lunch_hi
+        lunch_hi   := high
+        lunch_hi_t := time
+    if low <= lunch_lo
+        lunch_lo   := low
+        lunch_lo_t := time
 
 if lunch_end
     lunch_in := false
@@ -916,9 +985,11 @@ if n_lunch > 0
         b    = array.get(lunch_bxs, i)
         bool live = i == n_lunch - 1 and lunch_in
         if live
-            array.set(lunch_his, i, lunch_hi)
-            array.set(lunch_los, i, lunch_lo)
-            array.set(lunch_rt,  i, time + bar_ms)
+            array.set(lunch_his,  i, lunch_hi)
+            array.set(lunch_los,  i, lunch_lo)
+            array.set(lunch_rt,   i, time + bar_ms)
+            array.set(lunch_hl_t, i, lunch_hi_t)
+            array.set(lunch_ll_t, i, lunch_lo_t)
         box.set_top(b,           array.get(lunch_his, i))
         box.set_bottom(b,        array.get(lunch_los, i))
         box.set_left(b,          array.get(lunch_lt,  i))
@@ -932,8 +1003,10 @@ if n_lunch > 0
         box.set_text_size(b,     lbl_sz(box_lbl_size))
         box.set_text_halign(b,   bx_halign(box_lbl_pos))
         box.set_text_valign(b,   bx_valign(box_lbl_pos))
-        float h_prc_u = array.get(lunch_his, i)
-        float l_prc_u = array.get(lunch_los, i)
+        float h_prc_u = array.get(lunch_his,  i)
+        float l_prc_u = array.get(lunch_los,  i)
+        int   h_t1_u  = array.get(lunch_hl_t, i)
+        int   l_t1_u  = array.get(lunch_ll_t, i)
         line  h_ln_u  = array.get(lunch_hl_lns, i)
         line  l_ln_u  = array.get(lunch_ll_lns, i)
         int   h_tkn_u = array.get(lunch_hl_tkn, i)
@@ -945,23 +1018,21 @@ if n_lunch > 0
             if na(l_tkn_u) and low <= l_prc_u
                 l_tkn_u := bar_index
                 array.set(lunch_ll_tkn, i, bar_index)
-        bool h_tk_u  = not na(h_tkn_u)
-        bool l_tk_u  = not na(l_tkn_u)
-        int  h_si_u  = h_tk_u ? bar_index - h_tkn_u : 0
-        int  l_si_u  = l_tk_u ? bar_index - l_tkn_u : 0
-        bool h_vis_u = show_sl_lines and show_lunch and tf_ok and not live and
-                       (not sl_hide_taken or not h_tk_u or h_si_u <= sl_grace)
-        bool l_vis_u = show_sl_lines and show_lunch and tf_ok and not live and
-                       (not sl_hide_taken or not l_tk_u or l_si_u <= sl_grace)
-        line.set_x1(h_ln_u, array.get(lunch_rt, i))
-        line.set_x2(h_ln_u, time + extend_ms)
+        bool h_tk_u = not na(h_tkn_u)
+        bool l_tk_u = not na(l_tkn_u)
+        int  h_x2_u = h_tk_u ? time + (h_tkn_u - bar_index + sl_grace) * bar_ms : time + extend_ms
+        int  l_x2_u = l_tk_u ? time + (l_tkn_u - bar_index + sl_grace) * bar_ms : time + extend_ms
+        bool h_vis_u = show_sl_lines and sl_show_lunch and tf_ok and not live
+        bool l_vis_u = show_sl_lines and sl_show_lunch and tf_ok and not live
+        line.set_x1(h_ln_u, h_t1_u)
+        line.set_x2(h_ln_u, h_x2_u)
         line.set_y1(h_ln_u, h_prc_u)
         line.set_y2(h_ln_u, h_prc_u)
         line.set_color(h_ln_u, h_vis_u ? color.new(lunch_col, 0) : na)
         line.set_width(h_ln_u, h_vis_u ? sl_w : 0)
         line.set_style(h_ln_u, ls(sl_sty_in))
-        line.set_x1(l_ln_u, array.get(lunch_rt, i))
-        line.set_x2(l_ln_u, time + extend_ms)
+        line.set_x1(l_ln_u, l_t1_u)
+        line.set_x2(l_ln_u, l_x2_u)
         line.set_y1(l_ln_u, l_prc_u)
         line.set_y2(l_ln_u, l_prc_u)
         line.set_color(l_ln_u, l_vis_u ? color.new(lunch_col, 0) : na)
@@ -969,43 +1040,49 @@ if n_lunch > 0
         line.set_style(l_ln_u, ls(sl_sty_in))
         label hl_lbl_u = array.get(lunch_hl_lbls, i)
         label ll_lbl_u = array.get(lunch_ll_lbls, i)
-        label.set_x(hl_lbl_u, time + extend_ms)
+        label.set_x(hl_lbl_u, sl_lbl_x(sl_lbl_pos, h_t1_u, h_x2_u))
         label.set_y(hl_lbl_u, h_prc_u)
-        label.set_style(hl_lbl_u, sl_h_style(sl_h_lbl_pos))
+        label.set_style(hl_lbl_u, sl_lbl_sty_hi(sl_lbl_pos))
         label.set_text(hl_lbl_u, sl_lbl_txt("Lunch High", h_prc_u))
         label.set_size(hl_lbl_u, lbl_sz(sl_lbl_sz))
         label.set_textcolor(hl_lbl_u, h_vis_u ? color.new(lunch_col, 0) : na)
-        label.set_x(ll_lbl_u, time + extend_ms)
+        label.set_x(ll_lbl_u, sl_lbl_x(sl_lbl_pos, l_t1_u, l_x2_u))
         label.set_y(ll_lbl_u, l_prc_u)
-        label.set_style(ll_lbl_u, sl_l_style(sl_l_lbl_pos))
+        label.set_style(ll_lbl_u, sl_lbl_sty_lo(sl_lbl_pos))
         label.set_text(ll_lbl_u, sl_lbl_txt("Lunch Low", l_prc_u))
         label.set_size(ll_lbl_u, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_u, l_vis_u ? color.new(lunch_col, 0) : na)
 
 // ── NY PM SESSION ─────────────────────────────────────────────────────────────
-var bool    nypm_in  = false
-var float   nypm_hi  = na
-var float   nypm_lo  = na
-var box[]   nypm_bxs = array.new_box()
-var float[] nypm_his = array.new_float()
-var float[] nypm_los = array.new_float()
-var int[]   nypm_lt  = array.new_int()
-var int[]   nypm_rt  = array.new_int()
+var bool    nypm_in   = false
+var float   nypm_hi   = na
+var float   nypm_lo   = na
+var int     nypm_hi_t = na
+var int     nypm_lo_t = na
+var box[]   nypm_bxs  = array.new_box()
+var float[] nypm_his  = array.new_float()
+var float[] nypm_los  = array.new_float()
+var int[]   nypm_lt   = array.new_int()
+var int[]   nypm_rt   = array.new_int()
 var line[]  nypm_hl_lns  = array.new_line()
 var line[]  nypm_ll_lns  = array.new_line()
 var int[]   nypm_hl_tkn  = array.new_int()
 var int[]   nypm_ll_tkn  = array.new_int()
 var label[] nypm_hl_lbls = array.new_label()
 var label[] nypm_ll_lbls = array.new_label()
+var int[]   nypm_hl_t    = array.new_int()
+var int[]   nypm_ll_t    = array.new_int()
 
 bool nypm_now   = f_in_sess(nypm_sh, nypm_sm, nypm_eh, nypm_em)
 bool nypm_start = nypm_now  and not nypm_in
 bool nypm_end   = not nypm_now and nypm_in
 
 if nypm_start and tf_ok
-    nypm_in := true
-    nypm_hi := high
-    nypm_lo := low
+    nypm_in   := true
+    nypm_hi   := high
+    nypm_lo   := low
+    nypm_hi_t := time
+    nypm_lo_t := time
     b = box.new(time, high, time + bar_ms, low, xloc=xloc.bar_time,
                 bgcolor=na, border_color=na, border_width=0)
     array.push(nypm_bxs, b)
@@ -1013,24 +1090,30 @@ if nypm_start and tf_ok
     array.push(nypm_los, low)
     array.push(nypm_lt,  time)
     array.push(nypm_rt,  time + bar_ms)
-    hl = line.new(time + bar_ms, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
-    ll = line.new(time + bar_ms, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
+    hl = line.new(time, high, time + bar_ms, high, xloc=xloc.bar_time, color=na, width=0)
+    ll = line.new(time, low,  time + bar_ms, low,  xloc=xloc.bar_time, color=na, width=0)
     hl_lbl = label.new(time + bar_ms, high, "PM High", xloc=xloc.bar_time,
-                       style=sl_h_style(sl_h_lbl_pos), color=na, textcolor=na, size=size.small)
+                       style=label.style_label_down, color=na, textcolor=na, size=size.small)
     ll_lbl = label.new(time + bar_ms, low,  "PM Low",  xloc=xloc.bar_time,
-                       style=sl_l_style(sl_l_lbl_pos), color=na, textcolor=na, size=size.small)
+                       style=label.style_label_up, color=na, textcolor=na, size=size.small)
     array.push(nypm_hl_lns, hl)
     array.push(nypm_ll_lns, ll)
     array.push(nypm_hl_tkn, na)
     array.push(nypm_ll_tkn, na)
     array.push(nypm_hl_lbls, hl_lbl)
     array.push(nypm_ll_lbls, ll_lbl)
+    array.push(nypm_hl_t, time)
+    array.push(nypm_ll_t, time)
     f_trim_sess(nypm_bxs, nypm_his, nypm_los, nypm_lt, nypm_rt, max_ol)
-    f_trim_hl(nypm_hl_lns, nypm_ll_lns, nypm_hl_tkn, nypm_ll_tkn, nypm_hl_lbls, nypm_ll_lbls, max_ol)
+    f_trim_hl(nypm_hl_lns, nypm_ll_lns, nypm_hl_tkn, nypm_ll_tkn, nypm_hl_lbls, nypm_ll_lbls, nypm_hl_t, nypm_ll_t, max_ol)
 
 if nypm_in and not nypm_start
-    nypm_hi := math.max(nypm_hi, high)
-    nypm_lo := math.min(nypm_lo, low)
+    if high >= nypm_hi
+        nypm_hi   := high
+        nypm_hi_t := time
+    if low <= nypm_lo
+        nypm_lo   := low
+        nypm_lo_t := time
 
 if nypm_end
     nypm_in := false
@@ -1041,9 +1124,11 @@ if n_nypm > 0
         b    = array.get(nypm_bxs, i)
         bool live = i == n_nypm - 1 and nypm_in
         if live
-            array.set(nypm_his, i, nypm_hi)
-            array.set(nypm_los, i, nypm_lo)
-            array.set(nypm_rt,  i, time + bar_ms)
+            array.set(nypm_his,  i, nypm_hi)
+            array.set(nypm_los,  i, nypm_lo)
+            array.set(nypm_rt,   i, time + bar_ms)
+            array.set(nypm_hl_t, i, nypm_hi_t)
+            array.set(nypm_ll_t, i, nypm_lo_t)
         box.set_top(b,           array.get(nypm_his, i))
         box.set_bottom(b,        array.get(nypm_los, i))
         box.set_left(b,          array.get(nypm_lt,  i))
@@ -1057,8 +1142,10 @@ if n_nypm > 0
         box.set_text_size(b,     lbl_sz(box_lbl_size))
         box.set_text_halign(b,   bx_halign(box_lbl_pos))
         box.set_text_valign(b,   bx_valign(box_lbl_pos))
-        float h_prc_p = array.get(nypm_his, i)
-        float l_prc_p = array.get(nypm_los, i)
+        float h_prc_p = array.get(nypm_his,  i)
+        float l_prc_p = array.get(nypm_los,  i)
+        int   h_t1_p  = array.get(nypm_hl_t, i)
+        int   l_t1_p  = array.get(nypm_ll_t, i)
         line  h_ln_p  = array.get(nypm_hl_lns, i)
         line  l_ln_p  = array.get(nypm_ll_lns, i)
         int   h_tkn_p = array.get(nypm_hl_tkn, i)
@@ -1070,23 +1157,21 @@ if n_nypm > 0
             if na(l_tkn_p) and low <= l_prc_p
                 l_tkn_p := bar_index
                 array.set(nypm_ll_tkn, i, bar_index)
-        bool h_tk_p  = not na(h_tkn_p)
-        bool l_tk_p  = not na(l_tkn_p)
-        int  h_si_p  = h_tk_p ? bar_index - h_tkn_p : 0
-        int  l_si_p  = l_tk_p ? bar_index - l_tkn_p : 0
-        bool h_vis_p = show_sl_lines and show_nypm and tf_ok and not live and
-                       (not sl_hide_taken or not h_tk_p or h_si_p <= sl_grace)
-        bool l_vis_p = show_sl_lines and show_nypm and tf_ok and not live and
-                       (not sl_hide_taken or not l_tk_p or l_si_p <= sl_grace)
-        line.set_x1(h_ln_p, array.get(nypm_rt, i))
-        line.set_x2(h_ln_p, time + extend_ms)
+        bool h_tk_p = not na(h_tkn_p)
+        bool l_tk_p = not na(l_tkn_p)
+        int  h_x2_p = h_tk_p ? time + (h_tkn_p - bar_index + sl_grace) * bar_ms : time + extend_ms
+        int  l_x2_p = l_tk_p ? time + (l_tkn_p - bar_index + sl_grace) * bar_ms : time + extend_ms
+        bool h_vis_p = show_sl_lines and sl_show_nypm and tf_ok and not live
+        bool l_vis_p = show_sl_lines and sl_show_nypm and tf_ok and not live
+        line.set_x1(h_ln_p, h_t1_p)
+        line.set_x2(h_ln_p, h_x2_p)
         line.set_y1(h_ln_p, h_prc_p)
         line.set_y2(h_ln_p, h_prc_p)
         line.set_color(h_ln_p, h_vis_p ? color.new(nypm_col, 0) : na)
         line.set_width(h_ln_p, h_vis_p ? sl_w : 0)
         line.set_style(h_ln_p, ls(sl_sty_in))
-        line.set_x1(l_ln_p, array.get(nypm_rt, i))
-        line.set_x2(l_ln_p, time + extend_ms)
+        line.set_x1(l_ln_p, l_t1_p)
+        line.set_x2(l_ln_p, l_x2_p)
         line.set_y1(l_ln_p, l_prc_p)
         line.set_y2(l_ln_p, l_prc_p)
         line.set_color(l_ln_p, l_vis_p ? color.new(nypm_col, 0) : na)
@@ -1094,15 +1179,15 @@ if n_nypm > 0
         line.set_style(l_ln_p, ls(sl_sty_in))
         label hl_lbl_p = array.get(nypm_hl_lbls, i)
         label ll_lbl_p = array.get(nypm_ll_lbls, i)
-        label.set_x(hl_lbl_p, time + extend_ms)
+        label.set_x(hl_lbl_p, sl_lbl_x(sl_lbl_pos, h_t1_p, h_x2_p))
         label.set_y(hl_lbl_p, h_prc_p)
-        label.set_style(hl_lbl_p, sl_h_style(sl_h_lbl_pos))
+        label.set_style(hl_lbl_p, sl_lbl_sty_hi(sl_lbl_pos))
         label.set_text(hl_lbl_p, sl_lbl_txt("PM High", h_prc_p))
         label.set_size(hl_lbl_p, lbl_sz(sl_lbl_sz))
         label.set_textcolor(hl_lbl_p, h_vis_p ? color.new(nypm_col, 0) : na)
-        label.set_x(ll_lbl_p, time + extend_ms)
+        label.set_x(ll_lbl_p, sl_lbl_x(sl_lbl_pos, l_t1_p, l_x2_p))
         label.set_y(ll_lbl_p, l_prc_p)
-        label.set_style(ll_lbl_p, sl_l_style(sl_l_lbl_pos))
+        label.set_style(ll_lbl_p, sl_lbl_sty_lo(sl_lbl_pos))
         label.set_text(ll_lbl_p, sl_lbl_txt("PM Low", l_prc_p))
         label.set_size(ll_lbl_p, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_p, l_vis_p ? color.new(nypm_col, 0) : na)
