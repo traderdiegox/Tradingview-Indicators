@@ -19,7 +19,7 @@ string bsty_in = input.string("Dotted", "Box Border Style",
     options=["Solid","Dashed","Dotted"], group=GEN)
 int  bw_in      = input.int(1, "Box Border Width", minval=1, maxval=4, group=GEN)
 int   extend_bars  = input.int(5,    "H-Line Extension (bars)",    minval=0,   maxval=500,  group=GEN)
-float lbl_min_gap  = input.float(0.2, "Label Spacing (ATR×)",       minval=0.0, maxval=5.0, step=0.05, group=GEN)
+float lbl_min_gap  = input.float(0.5, "Label Spacing (ATR×)",       minval=0.0, maxval=5.0, step=0.05, group=GEN)
 
 // ════════════════════════════════════════════════════════════════════════════
 // INPUTS — DAILY & WEEKLY LEVELS
@@ -385,31 +385,17 @@ f_trim_open(vls, hls, lbls, dns, max_n) =>
         array.shift(dns)
 
 // Resolve overlapping labels — call once per bar after all label y-values are set.
-// hi: anchors sit at the line price, text extends above → sort descending, push down.
-// lo: anchors sit at the line price, text extends below → sort ascending, push up.
+//
+// Hi-labels: anchor = bottom of text box (lower_right/left style), text extends UP.
+//   Sort ascending so the lowest-priced label is the stable "base".
+//   Walk upward: if the next label's anchor is too close, push it UP — keeping all
+//   labels above their own lines (text never crosses the line that owns it).
+//
+// Lo-labels: anchor = top of text box (upper_right/left style), text extends DOWN.
+//   Sort descending so the highest-priced label is the stable "base".
+//   Walk downward: if the next label's anchor is too close, push it DOWN — keeping
+//   all labels below their own lines.
 f_resolve_hi(prices, objs, gap) =>
-    n = array.size(prices)
-    if n > 1
-        for iter = 0 to n - 2  // bubble sort descending
-            for j = 0 to n - 2 - iter
-                if array.get(prices, j) < array.get(prices, j + 1)
-                    p1 = array.get(prices, j)
-                    p2 = array.get(prices, j + 1)
-                    o1 = array.get(objs, j)
-                    o2 = array.get(objs, j + 1)
-                    array.set(prices, j,     p2)
-                    array.set(prices, j + 1, p1)
-                    array.set(objs,   j,     o2)
-                    array.set(objs,   j + 1, o1)
-        for k = 1 to n - 1    // push apart if too close
-            p_above = array.get(prices, k - 1)
-            p_cur   = array.get(prices, k)
-            if p_above - p_cur < gap
-                new_y = p_above - gap
-                array.set(prices, k, new_y)
-                label.set_y(array.get(objs, k), new_y)
-
-f_resolve_lo(prices, objs, gap) =>
     n = array.size(prices)
     if n > 1
         for iter = 0 to n - 2  // bubble sort ascending
@@ -423,11 +409,33 @@ f_resolve_lo(prices, objs, gap) =>
                     array.set(prices, j + 1, p1)
                     array.set(objs,   j,     o2)
                     array.set(objs,   j + 1, o1)
-        for k = 1 to n - 1    // push apart if too close
+        for k = 1 to n - 1    // push higher labels UP away from lower ones
             p_below = array.get(prices, k - 1)
             p_cur   = array.get(prices, k)
             if p_cur - p_below < gap
                 new_y = p_below + gap
+                array.set(prices, k, new_y)
+                label.set_y(array.get(objs, k), new_y)
+
+f_resolve_lo(prices, objs, gap) =>
+    n = array.size(prices)
+    if n > 1
+        for iter = 0 to n - 2  // bubble sort descending
+            for j = 0 to n - 2 - iter
+                if array.get(prices, j) < array.get(prices, j + 1)
+                    p1 = array.get(prices, j)
+                    p2 = array.get(prices, j + 1)
+                    o1 = array.get(objs, j)
+                    o2 = array.get(objs, j + 1)
+                    array.set(prices, j,     p2)
+                    array.set(prices, j + 1, p1)
+                    array.set(objs,   j,     o2)
+                    array.set(objs,   j + 1, o1)
+        for k = 1 to n - 1    // push lower labels DOWN away from higher ones
+            p_above = array.get(prices, k - 1)
+            p_cur   = array.get(prices, k)
+            if p_above - p_cur < gap
+                new_y = p_above - gap
                 array.set(prices, k, new_y)
                 label.set_y(array.get(objs, k), new_y)
 
