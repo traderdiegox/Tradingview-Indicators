@@ -60,7 +60,7 @@ string dw_lbl_pos    = input.string("Right", "Label Position", options=["Left","
 string GOP = "📌  Opens"
 
 bool   show_mid    = input.bool(true,  "Midnight Open",   group=GOP, inline="mid")
-color  mid_col     = input.color(color.new(#F44336, 70),  "", group=GOP, inline="mid")
+color  mid_col     = input.color(color.new(#424242,  0),  "", group=GOP, inline="mid")
 string mid_sty_in  = input.string("Dotted", "",  options=["Solid","Dashed","Dotted"], group=GOP, inline="mid")
 int    mid_w       = input.int(1, "", minval=1, maxval=4,  group=GOP, inline="mid")
 bool   show_mid_h  = input.bool(true,  "H-Line",           group=GOP, inline="mid")
@@ -253,7 +253,7 @@ bool   sl_show_lunch = input.bool(true,  "Lunch",  group=GLL, inline="sl_sess")
 bool   sl_show_nypm  = input.bool(true,  "NY PM",  group=GLL, inline="sl_sess")
 int    sl_grace      = input.int(0,  "Extend after taken (Candles)",    group=GLL, minval=0, maxval=500)
 bool   sl_show_price = input.bool(true,  "Show Price in Label", group=GLL)
-string sl_lbl_pos    = input.string("Right", "Label Position",  options=["Left","Center","Right"], group=GLL)
+string sl_lbl_pos    = input.string("Center", "Label Position", options=["Left","Center","Right"], group=GLL)
 string sl_sty_in     = input.string("Solid",  "Line Style",  options=["Solid","Dashed","Dotted"], group=GLL)
 int    sl_w          = input.int(1, "Thickness", minval=1, maxval=4, group=GLL)
 string sl_lbl_sz     = input.string("small", "Label Size",   options=["tiny","small","normal","large"], group=GLL)
@@ -481,7 +481,8 @@ if trig_930
 int n_mid = array.size(mid_vl)
 if n_mid > 0
     for i = 0 to n_mid - 1
-        bool day_ok_mid = tday_num - array.get(mid_day_n, i) <= prev_opens
+        bool day_ok_mid  = tday_num - array.get(mid_day_n, i) <= prev_opens
+        bool latest_mid  = i == n_mid - 1   // only the most-recent open shows h-line
         line  lv_m  = array.get(mid_vl,  i)
         line  lh_m  = array.get(mid_hl,  i)
         label lb_m  = array.get(lbl_mid, i)
@@ -491,20 +492,21 @@ if n_mid > 0
         line.set_width(lv_m, show_mid and day_ok_mid ? mid_w : 0)
         line.set_style(lv_m, ls(mid_sty_in))
         line.set_x2(lh_m, op_x2)
-        line.set_color(lh_m, show_mid and show_mid_h and day_ok_mid ? mid_col : na)
-        line.set_width(lh_m, show_mid and show_mid_h and day_ok_mid ? mid_w : 0)
+        line.set_color(lh_m, show_mid and show_mid_h and day_ok_mid and latest_mid ? mid_col : na)
+        line.set_width(lh_m, show_mid and show_mid_h and day_ok_mid and latest_mid ? mid_w : 0)
         line.set_style(lh_m, ls(mid_sty_in))
         label.set_x(lb_m, op_x2)
         label.set_y(lb_m, op_prc)
         label.set_style(lb_m, label.style_label_left)
         label.set_text(lb_m, open_lbl_price ? "Midnight (" + str.tostring(op_prc, format.mintick) + ")" : "Midnight")
         label.set_size(lb_m, lbl_sz(open_lbl_sz))
-        label.set_textcolor(lb_m, show_mid and show_mid_h and show_open_lbl and day_ok_mid ? mid_col : na)
+        label.set_textcolor(lb_m, show_mid and show_mid_h and show_open_lbl and day_ok_mid and latest_mid ? mid_col : na)
 
 int n_830 = array.size(vl_830)
 if n_830 > 0
     for i = 0 to n_830 - 1
-        bool day_ok_830 = tday_num - array.get(a830_day_n, i) <= prev_opens
+        bool day_ok_830  = tday_num - array.get(a830_day_n, i) <= prev_opens
+        bool latest_830  = i == n_830 - 1
         line  lv_8  = array.get(vl_830,  i)
         line  lh_8  = array.get(hl_830,  i)
         label lb_8  = array.get(lbl_830, i)
@@ -514,20 +516,21 @@ if n_830 > 0
         line.set_width(lv_8, show_830 and day_ok_830 ? w_830 : 0)
         line.set_style(lv_8, ls(sty_830_in))
         line.set_x2(lh_8, op_x2)
-        line.set_color(lh_8, show_830 and show_830_h and day_ok_830 ? col_830 : na)
-        line.set_width(lh_8, show_830 and show_830_h and day_ok_830 ? w_830 : 0)
+        line.set_color(lh_8, show_830 and show_830_h and day_ok_830 and latest_830 ? col_830 : na)
+        line.set_width(lh_8, show_830 and show_830_h and day_ok_830 and latest_830 ? w_830 : 0)
         line.set_style(lh_8, ls(sty_830_in))
         label.set_x(lb_8, op_x2)
         label.set_y(lb_8, op_prc)
         label.set_style(lb_8, label.style_label_left)
         label.set_text(lb_8, open_lbl_price ? "8:30am (" + str.tostring(op_prc, format.mintick) + ")" : "8:30am")
         label.set_size(lb_8, lbl_sz(open_lbl_sz))
-        label.set_textcolor(lb_8, show_830 and show_830_h and show_open_lbl and day_ok_830 ? col_830 : na)
+        label.set_textcolor(lb_8, show_830 and show_830_h and show_open_lbl and day_ok_830 and latest_830 ? col_830 : na)
 
 int n_930 = array.size(vl_930)
 if n_930 > 0
     for i = 0 to n_930 - 1
-        bool day_ok_930 = tday_num - array.get(a930_day_n, i) <= prev_opens
+        bool day_ok_930  = tday_num - array.get(a930_day_n, i) <= prev_opens
+        bool latest_930  = i == n_930 - 1
         line  lv_9  = array.get(vl_930,  i)
         line  lh_9  = array.get(hl_930,  i)
         label lb_9  = array.get(lbl_930, i)
@@ -537,15 +540,15 @@ if n_930 > 0
         line.set_width(lv_9, show_930 and day_ok_930 ? w_930 : 0)
         line.set_style(lv_9, ls(sty_930_in))
         line.set_x2(lh_9, op_x2)
-        line.set_color(lh_9, show_930 and show_930_h and day_ok_930 ? col_930 : na)
-        line.set_width(lh_9, show_930 and show_930_h and day_ok_930 ? w_930 : 0)
+        line.set_color(lh_9, show_930 and show_930_h and day_ok_930 and latest_930 ? col_930 : na)
+        line.set_width(lh_9, show_930 and show_930_h and day_ok_930 and latest_930 ? w_930 : 0)
         line.set_style(lh_9, ls(sty_930_in))
         label.set_x(lb_9, op_x2)
         label.set_y(lb_9, op_prc)
         label.set_style(lb_9, label.style_label_left)
         label.set_text(lb_9, open_lbl_price ? "9:30am (" + str.tostring(op_prc, format.mintick) + ")" : "9:30am")
         label.set_size(lb_9, lbl_sz(open_lbl_sz))
-        label.set_textcolor(lb_9, show_930 and show_930_h and show_open_lbl and day_ok_930 ? col_930 : na)
+        label.set_textcolor(lb_9, show_930 and show_930_h and show_open_lbl and day_ok_930 and latest_930 ? col_930 : na)
 
 // ════════════════════════════════════════════════════════════════════════════
 // SESSION BOX MACRO (comment-based — repeated per session below)
