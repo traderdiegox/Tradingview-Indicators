@@ -18,8 +18,7 @@ int  prev_opens  = input.int(1,  "Show Previous Opens",     minval=0, maxval=10,
 string bsty_in = input.string("Dotted", "Box Border Style",
     options=["Solid","Dashed","Dotted"], group=GEN)
 int  bw_in      = input.int(1, "Box Border Width", minval=1, maxval=4, group=GEN)
-int   extend_bars  = input.int(5,    "H-Line Extension (bars)",    minval=0,   maxval=500,  group=GEN)
-float lbl_min_gap  = input.float(0.5, "Label Spacing (ATR×)",       minval=0.0, maxval=5.0, step=0.05, group=GEN)
+int  extend_bars = input.int(5, "H-Line Extension (bars)", minval=0, maxval=500, group=GEN)
 
 // ════════════════════════════════════════════════════════════════════════════
 // INPUTS — DAILY & WEEKLY LEVELS
@@ -384,60 +383,6 @@ f_trim_open(vls, hls, lbls, dns, max_n) =>
         label.delete(array.shift(lbls))
         array.shift(dns)
 
-// Resolve overlapping labels — call once per bar after all label y-values are set.
-//
-// Hi-labels: anchor = bottom of text box (lower_right/left style), text extends UP.
-//   Sort ascending so the lowest-priced label is the stable "base".
-//   Walk upward: if the next label's anchor is too close, push it UP — keeping all
-//   labels above their own lines (text never crosses the line that owns it).
-//
-// Lo-labels: anchor = top of text box (upper_right/left style), text extends DOWN.
-//   Sort descending so the highest-priced label is the stable "base".
-//   Walk downward: if the next label's anchor is too close, push it DOWN — keeping
-//   all labels below their own lines.
-f_resolve_hi(prices, objs, gap) =>
-    n = array.size(prices)
-    if n > 1
-        for iter = 0 to n - 2  // bubble sort ascending
-            for j = 0 to n - 2 - iter
-                if array.get(prices, j) > array.get(prices, j + 1)
-                    p1 = array.get(prices, j)
-                    p2 = array.get(prices, j + 1)
-                    o1 = array.get(objs, j)
-                    o2 = array.get(objs, j + 1)
-                    array.set(prices, j,     p2)
-                    array.set(prices, j + 1, p1)
-                    array.set(objs,   j,     o2)
-                    array.set(objs,   j + 1, o1)
-        for k = 1 to n - 1    // push higher labels UP away from lower ones
-            p_below = array.get(prices, k - 1)
-            p_cur   = array.get(prices, k)
-            if p_cur - p_below < gap
-                new_y = p_below + gap
-                array.set(prices, k, new_y)
-                label.set_y(array.get(objs, k), new_y)
-
-f_resolve_lo(prices, objs, gap) =>
-    n = array.size(prices)
-    if n > 1
-        for iter = 0 to n - 2  // bubble sort descending
-            for j = 0 to n - 2 - iter
-                if array.get(prices, j) < array.get(prices, j + 1)
-                    p1 = array.get(prices, j)
-                    p2 = array.get(prices, j + 1)
-                    o1 = array.get(objs, j)
-                    o2 = array.get(objs, j + 1)
-                    array.set(prices, j,     p2)
-                    array.set(prices, j + 1, p1)
-                    array.set(objs,   j,     o2)
-                    array.set(objs,   j + 1, o1)
-        for k = 1 to n - 1    // push lower labels DOWN away from higher ones
-            p_above = array.get(prices, k - 1)
-            p_cur   = array.get(prices, k)
-            if p_above - p_cur < gap
-                new_y = p_above - gap
-                array.set(prices, k, new_y)
-                label.set_y(array.get(objs, k), new_y)
 
 // ════════════════════════════════════════════════════════════════════════════
 // OPEN LINE TRIGGERS
@@ -611,13 +556,6 @@ if n_930 > 0
 //   4. Every bar → re-apply all properties for toggle responsiveness
 // ════════════════════════════════════════════════════════════════════════════
 
-// ── LABEL COLLISION BUFFERS (rebuilt each bar, non-var) ──────────────────────
-float min_gap      = ta.atr(14) * lbl_min_gap
-float[] hi_lbl_y   = array.new_float()   // base prices of visible hi-labels
-label[] hi_lbl_obj = array.new_label()
-float[] lo_lbl_y   = array.new_float()   // base prices of visible lo-labels
-label[] lo_lbl_obj = array.new_label()
-
 // ── ASIAN RANGE ──────────────────────────────────────────────────────────────
 var bool    asia_in   = false
 var float   asia_hi   = na
@@ -756,11 +694,6 @@ if n_asia > 0
         label.set_text(ll_lbl_a, sl_lbl_txt("AS Low", l_prc_a))
         label.set_size(ll_lbl_a, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_a, vis_a ? color.new(asia_col, 0) : na)
-        if vis_a
-            array.push(hi_lbl_y,   h_prc_a)
-            array.push(hi_lbl_obj, hl_lbl_a)
-            array.push(lo_lbl_y,   l_prc_a)
-            array.push(lo_lbl_obj, ll_lbl_a)
 
 // ── LONDON SESSION ────────────────────────────────────────────────────────────
 var bool    lon_in  = false
@@ -900,11 +833,6 @@ if n_lon > 0
         label.set_text(ll_lbl_l, sl_lbl_txt("LO Low", l_prc_l))
         label.set_size(ll_lbl_l, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_l, vis_l ? color.new(lon_col, 0) : na)
-        if vis_l
-            array.push(hi_lbl_y,   h_prc_l)
-            array.push(hi_lbl_obj, hl_lbl_l)
-            array.push(lo_lbl_y,   l_prc_l)
-            array.push(lo_lbl_obj, ll_lbl_l)
 
 // ── NY AM SESSION ─────────────────────────────────────────────────────────────
 var bool    nyam_in  = false
@@ -1044,11 +972,6 @@ if n_nyam > 0
         label.set_text(ll_lbl_n, sl_lbl_txt("AM Low", l_prc_n))
         label.set_size(ll_lbl_n, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_n, vis_n ? color.new(nyam_col, 0) : na)
-        if vis_n
-            array.push(hi_lbl_y,   h_prc_n)
-            array.push(hi_lbl_obj, hl_lbl_n)
-            array.push(lo_lbl_y,   l_prc_n)
-            array.push(lo_lbl_obj, ll_lbl_n)
 
 // ── LUNCH HOUR ────────────────────────────────────────────────────────────────
 var bool    lunch_in  = false
@@ -1188,11 +1111,6 @@ if n_lunch > 0
         label.set_text(ll_lbl_u, sl_lbl_txt("Lunch Low", l_prc_u))
         label.set_size(ll_lbl_u, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_u, vis_u ? color.new(lunch_col, 0) : na)
-        if vis_u
-            array.push(hi_lbl_y,   h_prc_u)
-            array.push(hi_lbl_obj, hl_lbl_u)
-            array.push(lo_lbl_y,   l_prc_u)
-            array.push(lo_lbl_obj, ll_lbl_u)
 
 // ── NY PM SESSION ─────────────────────────────────────────────────────────────
 var bool    nypm_in   = false
@@ -1332,11 +1250,6 @@ if n_nypm > 0
         label.set_text(ll_lbl_p, sl_lbl_txt("PM Low", l_prc_p))
         label.set_size(ll_lbl_p, lbl_sz(sl_lbl_sz))
         label.set_textcolor(ll_lbl_p, vis_p ? color.new(nypm_col, 0) : na)
-        if vis_p
-            array.push(hi_lbl_y,   h_prc_p)
-            array.push(hi_lbl_obj, hl_lbl_p)
-            array.push(lo_lbl_y,   l_prc_p)
-            array.push(lo_lbl_obj, ll_lbl_p)
 
 // ════════════════════════════════════════════════════════════════════════════
 // DAILY & WEEKLY LEVELS
@@ -1453,9 +1366,6 @@ if not na(pdh_ln)
     label.set_style(pdh_lbl_obj, sl_lbl_sty_hi(dw_lbl_pos))
     label.set_text(pdh_lbl_obj, dw_lbl_txt(pdh_lbl, pdh))
     label.set_textcolor(pdh_lbl_obj, show_pdh and show_dw_labels ? pdh_col : na)
-    if show_pdh and show_dw_labels
-        array.push(hi_lbl_y,   pdh)
-        array.push(hi_lbl_obj, pdh_lbl_obj)
 
 if not na(pdl_ln)
     if na(pdl_tkn) and low <= pdl
@@ -1473,9 +1383,6 @@ if not na(pdl_ln)
     label.set_style(pdl_lbl_obj, sl_lbl_sty_lo(dw_lbl_pos))
     label.set_text(pdl_lbl_obj, dw_lbl_txt(pdl_lbl, pdl))
     label.set_textcolor(pdl_lbl_obj, show_pdl and show_dw_labels ? pdl_col : na)
-    if show_pdl and show_dw_labels
-        array.push(lo_lbl_y,   pdl)
-        array.push(lo_lbl_obj, pdl_lbl_obj)
 
 if not na(pwh_ln)
     if na(pwh_tkn) and high >= pwh
@@ -1493,9 +1400,6 @@ if not na(pwh_ln)
     label.set_style(pwh_lbl_obj, sl_lbl_sty_hi(dw_lbl_pos))
     label.set_text(pwh_lbl_obj, dw_lbl_txt(pwh_lbl, pwh))
     label.set_textcolor(pwh_lbl_obj, show_pwh and show_dw_labels ? pwh_col : na)
-    if show_pwh and show_dw_labels
-        array.push(hi_lbl_y,   pwh)
-        array.push(hi_lbl_obj, pwh_lbl_obj)
 
 if not na(pwl_ln)
     if na(pwl_tkn) and low <= pwl
@@ -1513,10 +1417,3 @@ if not na(pwl_ln)
     label.set_style(pwl_lbl_obj, sl_lbl_sty_lo(dw_lbl_pos))
     label.set_text(pwl_lbl_obj, dw_lbl_txt(pwl_lbl, pwl))
     label.set_textcolor(pwl_lbl_obj, show_pwl and show_dw_labels ? pwl_col : na)
-    if show_pwl and show_dw_labels
-        array.push(lo_lbl_y,   pwl)
-        array.push(lo_lbl_obj, pwl_lbl_obj)
-
-// ── RESOLVE LABEL OVERLAPS ───────────────────────────────────────────────────
-f_resolve_hi(hi_lbl_y, hi_lbl_obj, min_gap)
-f_resolve_lo(lo_lbl_y, lo_lbl_obj, min_gap)
