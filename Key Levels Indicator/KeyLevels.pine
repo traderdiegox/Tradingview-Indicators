@@ -13,7 +13,7 @@ string tz      = input.string("America/New_York", "Timezone",
     options=["America/New_York","America/Chicago","America/Los_Angeles",
              "Europe/London","Europe/Berlin","Asia/Tokyo","Asia/Singapore"],
     group=GEN)
-int  prev_days   = input.int(0,  "Show Previous Sessions",  minval=0, maxval=10, group=GEN)
+int  prev_days   = input.int(1,  "Show Previous Sessions",  minval=0, maxval=10, group=GEN)
 int  prev_opens  = input.int(1,  "Show Previous Opens",     minval=0, maxval=10, group=GEN)
 string bsty_in = input.string("Dotted", "Box Border Style",
     options=["Solid","Dashed","Dotted"], group=GEN)
@@ -65,7 +65,7 @@ string mid_sty_in  = input.string("Dotted", "",  options=["Solid","Dashed","Dott
 int    mid_w       = input.int(1, "", minval=1, maxval=4,  group=GOP, inline="mid")
 bool   show_mid_h  = input.bool(true,  "H-Line",           group=GOP, inline="mid")
 
-bool   show_830    = input.bool(true,  "8:30 Open",        group=GOP, inline="830")
+bool   show_830    = input.bool(false, "8:30 Open",        group=GOP, inline="830")
 color  col_830     = input.color(color.new(#616161, 0),    "", group=GOP, inline="830")
 string sty_830_in  = input.string("Dotted", "",  options=["Solid","Dashed","Dotted"], group=GOP, inline="830")
 int    w_830       = input.int(1, "", minval=1, maxval=4,  group=GOP, inline="830")
@@ -249,8 +249,8 @@ bool   show_sl_lines = input.bool(true,  "Session Level Lines",         group=GL
 bool   sl_show_asia  = input.bool(true,  "Asian",  group=GLL, inline="sl_sess")
 bool   sl_show_lon   = input.bool(true,  "London", group=GLL, inline="sl_sess")
 bool   sl_show_nyam  = input.bool(true,  "NY AM",  group=GLL, inline="sl_sess")
-bool   sl_show_lunch = input.bool(true,  "Lunch",  group=GLL, inline="sl_sess")
-bool   sl_show_nypm  = input.bool(true,  "NY PM",  group=GLL, inline="sl_sess")
+bool   sl_show_lunch = input.bool(false, "Lunch",  group=GLL, inline="sl_sess")
+bool   sl_show_nypm  = input.bool(false, "NY PM",  group=GLL, inline="sl_sess")
 int    sl_grace      = input.int(0,  "Extend after taken (Candles)",    group=GLL, minval=0, maxval=500)
 bool   sl_show_price = input.bool(true,  "Show Price in Label", group=GLL)
 string sl_lbl_pos    = input.string("Center", "Label Position", options=["Left","Center","Right"], group=GLL)
